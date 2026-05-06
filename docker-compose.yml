@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sulplacas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     sulplacas
+      POSTGRES_PASSWORD: sulplacas123
+      POSTGRES_DB:       sulplacas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sulplacas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context:    ./backend
+      dockerfile: Dockerfile
+    container_name: sulplacas-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:     postgresql://sulplacas:sulplacas123@postgres:5432/sulplacas
+      FRONTEND_URL:     http://localhost:3000
+      EMPRESA_WHATSAPP: "5551999999999"
+      INTERNAL_SECRET:  change-me-in-production
+      PORT:             3001
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context:    ./frontend
+      dockerfile: Dockerfile
+    container_name: sulplacas-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:3001/api
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

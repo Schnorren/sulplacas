@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proposta Sul Placas – [NOME DO CLIENTE]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- ============================================================
+       DESIGN TOKENS — edite aqui para mudar toda a paleta
+       ============================================================ -->
+  <style>
+    :root {
+      /* Cores principais */
+      --color-brand:        #F59E0B;   /* âmbar — cor da marca */
+      --color-brand-dark:   #B45309;
+      --color-brand-light:  #FEF3C7;
+      --color-bg:           #020617;   /* fundo escuro */
+      --color-surface:      #0F172A;   /* cards */
+      --color-surface-2:    rgba(255,255,255,0.06);
+      --color-border:       rgba(255,255,255,0.12);
+      --color-text:         #F8FAFC;
+      --color-text-muted:   #94A3B8;
+      --color-text-dim:     #475569;
+      --color-accent-green: #10B981;
+      --color-accent-red:   #EF4444;
+      --color-accent-blue:  #3B82F6;
+
+      /* Tipografia */
+      --font-display: 'Fraunces', Georgia, serif;     /* títulos */
+      --font-body:    'DM Sans', system-ui, sans-serif; /* corpo */
+
+      /* Espaçamentos */
+      --space-xs:  4px;
+      --space-sm:  8px;
+      --space-md:  16px;
+      --space-lg:  24px;
+      --space-xl:  40px;
+      --space-2xl: 64px;
+
+      /* Bordas */
+      --radius-sm:  8px;
+      --radius-md:  14px;
+      --radius-lg:  20px;
+      --radius-pill: 999px;
+
+      /* Sombras */
+      --shadow-brand: 0 8px 32px rgba(245, 158, 11, 0.30);
+      --shadow-card:  0 2px 16px rgba(0, 0, 0, 0.40);
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100svh;
+      overflow-x: hidden;
+    }
+
+    /* ============================================================
+       FUNDO — blobs decorativos (edite ou remova livremente)
+       ============================================================ */
+    .bg-blobs {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    }
+    .bg-blobs::before {
+      content: '';
+      position: absolute; top: -120px; right: -120px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(245,158,11,0.10) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .bg-blobs::after {
+      content: '';
+      position: absolute; bottom: -80px; left: -80px;
+      width: 380px; height: 380px;
+      background: radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    /* ============================================================
+       LAYOUT PRINCIPAL
+       ============================================================ */
+    .page-wrapper {
+      position: relative; z-index: 1;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: var(--space-xl) var(--space-md) 160px;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .header { text-align: center; margin-bottom: var(--space-xl); }
+
+    .logo-pill {
+      display: inline-flex; align-items: center; gap: var(--space-sm);
+      background: var(--color-brand);
+      color: #1E293B;
+      padding: 8px 20px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-body);
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: var(--space-md);
+    }
+
+    .header-eyebrow {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--color-text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .header-title {
+      font-family: var(--font-display);
+      font-size: clamp(26px, 6vw, 34px);
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 4px;
+    }
+
+    .header-name {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 7vw, 38px);
+      font-weight: 900;
+      color: var(--color-brand);
+      font-style: italic;
+      line-height: 1.1;
+    }
+
+    .header-meta {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin-top: var(--space-sm);
+    }
+    .header-meta strong { color: var(--color-text); }
+
+    /* ============================================================
+       SECTION LABEL (reutilizável)
+       ============================================================ */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-text-dim);
+      margin-bottom: 12px;
+    }
+
+    /* ============================================================
+       PRICING CARDS
+       ============================================================ */
+    .pricing-section { margin-bottom: var(--space-lg); }
+
+    .pricing-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .price-card {
+      position: relative;
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .price-card--highlight {
+      background: var(--color-brand);
+      border-color: transparent;
+      color: #1E293B;
+      transform: scale(1.03);
+      box-shadow: var(--shadow-brand);
+    }
+    .price-card__badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--color-accent-green);
+      color: #fff;
+      font-size: 10px; font-weight: 700;
+      padding: 3px 12px; border-radius: var(--radius-pill);
+      white-space: nowrap;
+    }
+    .price-card__label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin-bottom: 6px;
+    }
+    .price-card--highlight .price-card__label { color: rgba(30,41,59,0.65); }
+    .price-card__value {
+      font-family: var(--font-display);
+      font-size: 30px; font-weight: 900; line-height: 1;
+      margin-bottom: 4px;
+    }
+    .price-card__sub { font-size: 11px; color: var(--color-text-muted); }
+    .price-card--highlight .price-card__sub { color: rgba(30,41,59,0.6); }
+
+    .price-cards-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ============================================================
+       UPSELLS
+       ============================================================ */
+    .upsells-section { margin-bottom: var(--space-lg); }
+    .upsell-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .upsell-toggle {
+      width: 100%; text-align: left;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      border: 2px solid var(--color-border);
+      background: var(--color-surface-2);
+      cursor: pointer;
+      display: flex; align-items: flex-start; gap: 12px;
+      transition: border-color 0.2s, background 0.2s;
+      color: var(--color-text);
+      font-family: var(--font-body);
+    }
+    .upsell-toggle:hover { border-color: rgba(255,255,255,0.30); }
+    .upsell-toggle.is-checked {
+      border-color: var(--color-brand);
+      background: rgba(245, 158, 11, 0.10);
+    }
+
+    .upsell-checkbox {
+      flex-shrink: 0; margin-top: 2px;
+      width: 20px; height: 20px;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.35);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .upsell-toggle.is-checked .upsell-checkbox {
+      background: var(--color-brand);
+      border-color: var(--color-brand);
+    }
+    .upsell-checkbox svg { display: none; }
+    .upsell-toggle.is-checked .upsell-checkbox svg { display: block; }
+
+    .upsell-body { flex: 1; }
+    .upsell-title {
+      display: flex; align-items: center; gap: 6px;
+      font-weight: 700; font-size: 13px; margin-bottom: 3px;
+    }
+    .upsell-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+    .upsell-price {
+      flex-shrink: 0;
+      font-weight: 900; font-size: 13px;
+      color: var(--color-text-muted);
+      transition: color 0.2s;
+    }
+    .upsell-toggle.is-checked .upsell-price { color: var(--color-brand); }
+
+    /* ============================================================
+       BLOCO EMOCIONAL
+       ============================================================ */
+    .emotional-block {
+      margin-bottom: var(--space-lg);
+      background: linear-gradient(135deg, rgba(30,58,138,0.45) 0%, rgba(15,23,42,0.75) 100%);
+      border: 1px solid rgba(59,130,246,0.18);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+    }
+    .emotional-inner { display: flex; gap: 14px; align-items: flex-start; }
+    .emotional-icon { font-size: 32px; flex-shrink: 0; }
+    .emotional-headline {
+      font-weight: 800; font-size: 13px;
+      line-height: 1.45; margin-bottom: 8px;
+    }
+    .emotional-headline .highlight-red   { color: #F87171; }
+    .emotional-headline .highlight-amber { color: var(--color-brand); font-size: 15px; }
+    .emotional-body { font-size: 13px; color: #CBD5E1; line-height: 1.55; margin-bottom: 14px; }
+
+    /* Barras de comparação */
+    .bar-row { margin-bottom: 8px; }
+    .bar-meta {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--color-text-muted); margin-bottom: 4px;
+    }
+    .bar-track {
+      height: 7px;
+      background: rgba(255,255,255,0.08);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: var(--radius-pill);
+      transition: width 1.2s cubic-bezier(.22,1,.36,1);
+    }
+    .bar-fill--red   { background: rgba(239,68,68,0.70); width: 33%; }
+    .bar-fill--green { background: var(--color-accent-green); width: 99%; }
+
+    /* ============================================================
+       URGÊNCIA / COUNTDOWN
+       ============================================================ */
+    .urgency-block {
+      margin-bottom: var(--space-lg);
+      background: rgba(239,68,68,0.10);
+      border: 1px solid rgba(239,68,68,0.28);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .urgency-icon { font-size: 24px; animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+    .urgency-label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.10em; text-transform: uppercase;
+      color: #FCA5A5; margin-bottom: 2px;
+    }
+    .urgency-timer {
+      font-family: var(--font-display);
+      font-size: 26px; font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: #FEE2E2;
+    }
+
+    /* ============================================================
+       SOCIAL PROOF
+       ============================================================ */
+    .social-proof {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin-bottom: var(--space-xl);
+    }
+    .proof-badge {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 14px 8px; text-align: center;
+    }
+    .proof-badge__icon { font-size: 22px; margin-bottom: 6px; }
+    .proof-badge__value { font-weight: 900; font-size: 13px; }
+    .proof-badge__label { font-size: 11px; color: var(--color-text-muted); }
+
+    /* ============================================================
+       CTA FLUTUANTE
+       ============================================================ */
+    .cta-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      padding: 24px var(--space-md) 20px;
+      background: linear-gradient(to top, var(--color-bg) 55%, transparent);
+    }
+    .cta-inner { max-width: 520px; margin: 0 auto; }
+    .cta-summary {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px; padding: 0 4px;
+      font-size: 12px; color: var(--color-text-muted);
+    }
+    .cta-summary strong { color: var(--color-brand); font-size: 13px; }
+
+    .cta-btn {
+      width: 100%;
+      background: var(--color-brand);
+      color: #1E293B;
+      font-family: var(--font-body);
+      font-weight: 900; font-size: 17px;
+      padding: 18px 24px;
+      border: none; border-radius: var(--radius-lg);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: var(--shadow-brand);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .cta-btn:hover  { background: #FCD34D; }
+    .cta-btn:active { transform: scale(0.98); }
+
+    /* ── Botão de PDF ── */
+    .pdf-btn {
+      width: 100%;
+      background: transparent;
+      color: var(--color-text-muted);
+      font-family: var(--font-body);
+      font-size: 13px; font-weight: 500;
+      padding: 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: 8px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .pdf-btn:hover { border-color: var(--color-brand); color: var(--color-brand); }
+
+    .cta-footnote {
+      text-align: center;
+      font-size: 11px; color: var(--color-text-dim);
+      margin-top: 6px;
+    }
+
+    /* ============================================================
+       ANIMAÇÃO DE ENTRADA
+       ============================================================ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .header         { animation: fadeUp 0.5s ease both; }
+    .pricing-section{ animation: fadeUp 0.5s 0.1s ease both; }
+    .upsells-section{ animation: fadeUp 0.5s 0.2s ease both; }
+    .emotional-block{ animation: fadeUp 0.5s 0.3s ease both; }
+    .urgency-block  { animation: fadeUp 0.5s 0.35s ease both; }
+    .social-proof   { animation: fadeUp 0.5s 0.4s ease both; }
+
+    /* ============================================================
+       RESPONSIVIDADE
+       ============================================================ */
+    @media (max-width: 380px) {
+      .price-card__value { font-size: 24px; }
+      .header-name { font-size: 26px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Blobs decorativos -->
+  <div class="bg-blobs" aria-hidden="true"></div>
+
+  <div class="page-wrapper">
+
+    <!-- ══════════════════════════════════════════════════════════
+         HEADER
+    ══════════════════════════════════════════════════════════ -->
+    <header class="header">
+      <div class="logo-pill">
+        <!-- Ícone sol SVG inline -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" fill="currentColor"/>
+          <line x1="12" y1="2"  x2="12" y2="5"  stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="2"  y1="12" x2="5"  y2="12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="4.2"  y1="4.2"  x2="6.3"  y2="6.3"  stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="17.7" y1="17.7" x2="19.8" y2="19.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="4.2"  y1="19.8" x2="6.3"  y2="17.7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="17.7" y1="6.3"  x2="19.8" y2="4.2"  stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        Sul Placas
+      </div>
+
+      <p class="header-eyebrow">Proposta exclusiva para</p>
+      <!-- ↓ Substituir pelo nome real do cliente via JS/SSR -->
+      <h1 class="header-name" id="client-name">Carlos Mendonça</h1>
+      <p class="header-meta" id="pool-meta">
+        Piscina <strong>8m × 4m</strong> — <strong>32 m²</strong> · Região Metropolitana
+      </p>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PRICING CARDS
+    ══════════════════════════════════════════════════════════ -->
+    <section class="pricing-section">
+      <p class="section-label">Condições de pagamento</p>
+      <div class="pricing-grid">
+
+        <!-- À vista — card destaque -->
+        <div class="price-card price-card--highlight">
+          <span class="price-card__badge">✨ Recomendado</span>
+          <p class="price-card__label">À Vista</p>
+          <p class="price-card__value" id="price-cash">R$ 6.570,00</p>
+          <p class="price-card__sub">Melhor custo-benefício</p>
+        </div>
+
+        <!-- Parcelados -->
+        <div class="price-cards-row">
+          <div class="price-card">
+            <p class="price-card__label">12× no cartão</p>
+            <p class="price-card__value" id="price-12x">R$ 614,00</p>
+            <p class="price-card__sub">Taxa de 12%</p>
+          </div>
+          <div class="price-card">
+            <p class="price-card__label">18× no cartão</p>
+            <p class="price-card__value" id="price-18x">R$ 424,00</p>
+            <p class="price-card__sub">Taxa de 16%</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         UPSELLS
+    ══════════════════════════════════════════════════════════ -->
+    <section class="upsells-section">
+      <p class="section-label">Adicione ao seu projeto</p>
+      <ul class="upsell-list" role="list">
+
+        <!-- Capa Térmica -->
+        <li>
+          <button class="upsell-toggle" id="toggle-thermal" data-cents="60000"
+                  onclick="toggleUpsell(this)" aria-pressed="false">
+            <div class="upsell-checkbox" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M2.5 8L6.5 12L13.5 4" stroke="#1E293B" stroke-width="2.5"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="upsell-body">
+              <div class="upsell-title"><span>🌡️</span> Capa Térmica</div>
+              <p class="upsell-desc">Reduz até 70% da evaporação e mantém a temperatura por mais tempo.</p>
+            </div>
+            <span class="upsell-price">+ R$ 600,00</span>
+          </button>
+        </li>
+
+        <!-- Controlador Wi-Fi -->
+        <li>
+          <button class="upsell-toggle" id="toggle-wifi" data-cents="45000"
+                  onclick="toggleUpsell(this)" aria-pressed="false">
+            <div class="upsell-checkbox" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M2.5 8L6.5 12L13.5 4" stroke="#1E293B" stroke-width="2.5"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="upsell-body">
+              <div class="upsell-title"><span>📱</span> Controlador Wi-Fi</div>
+              <p class="upsell-desc">Controle a temperatura pelo celular. Programação automática de horários.</p>
+            </div>
+            <span class="upsell-price">+ R$ 450,00</span>
+          </button>
+        </li>
+
+      </ul>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         GATILHO EMOCIONAL
+    ══════════════════════════════════════════════════════════ -->
+    <section class="emotional-block" aria-label="Benefício do aquecimento solar">
+      <div class="emotional-inner">
+        <span class="emotional-icon" aria-hidden="true">🏊</span>
+        <div>
+          <p class="emotional-headline">
+            No Rio Grande do Sul, sem aquecimento, você usa sua piscina em média
+            <span class="highlight-red">90 dias por ano</span>.
+          </p>
+          <p class="emotional-body">
+            Com o sistema Sul Placas, esse tempo sobe para até
+            <span class="highlight-amber">270 dias de lazer</span>
+            — 3× mais diversão para você e sua família. ☀️
+          </p>
+
+          <div class="bar-row">
+            <div class="bar-meta"><span>Sem aquecimento</span><span>90 dias</span></div>
+            <div class="bar-track"><div class="bar-fill bar-fill--red"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-meta"><span>Com Sul Placas</span><span>270 dias</span></div>
+            <div class="bar-track"><div class="bar-fill bar-fill--green"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         URGÊNCIA
+    ══════════════════════════════════════════════════════════ -->
+    <div class="urgency-block" role="timer" aria-live="polite">
+      <span class="urgency-icon" aria-hidden="true">⏰</span>
+      <div>
+        <p class="urgency-label">Condições de parcelamento válidas por</p>
+        <p class="urgency-timer" id="countdown">47:59:59</p>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SOCIAL PROOF
+    ══════════════════════════════════════════════════════════ -->
+    <div class="social-proof" role="list" aria-label="Diferenciais Sul Placas">
+      <div class="proof-badge" role="listitem">
+        <div class="proof-badge__icon">🏆</div>
+        <div class="proof-badge__value">10+ anos</div>
+        <div class="proof-badge__label">de experiência</div>
+      </div>
+      <div class="proof-badge" role="listitem">
+        <div class="proof-badge__icon">✅</div>
+        <div class="proof-badge__value">500+</div>
+        <div class="proof-badge__label">instalações</div>
+      </div>
+      <div class="proof-badge" role="listitem">
+        <div class="proof-badge__icon">🔧</div>
+        <div class="proof-badge__value">Garantia</div>
+        <div class="proof-badge__label">de 2 anos</div>
+      </div>
+    </div>
+
+  </div><!-- /page-wrapper -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       CTA FLUTUANTE
+  ══════════════════════════════════════════════════════════ -->
+  <div class="cta-bar" role="region" aria-label="Ação principal">
+    <div class="cta-inner">
+
+      <!-- Mini-resumo (aparece só com upsells) -->
+      <div class="cta-summary" id="cta-summary" style="display:none">
+        <span>Total à vista com adicionais</span>
+        <strong id="cta-total-display">R$ 6.570,00</strong>
+      </div>
+
+      <!-- Botão principal WhatsApp -->
+      <button class="cta-btn" onclick="handleApprove()" aria-label="Aprovar proposta via WhatsApp">
+        ☀️ Aprovar e Agendar Instalação
+      </button>
+
+      <!-- Botão exportar PDF -->
+      <button class="pdf-btn" onclick="handleExportPDF()" aria-label="Baixar proposta em PDF">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="11" x2="12" y2="17"/>
+          <polyline points="9 14 12 17 15 14"/>
+        </svg>
+        Baixar Proposta em PDF
+      </button>
+
+      <p class="cta-footnote">Você será redirecionado ao WhatsApp da Sul Placas</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       JAVASCRIPT — lógica de estado e interações
+       ============================================================ -->
+  <script>
+    // ── Configuração injetada pelo servidor (substitua pelos valores reais via SSR/template) ──
+    const PROPOSAL = {
+      id:              "UUID-DA-PROPOSTA",
+      clientName:      "Carlos Mendonça",
+      whatsapp:        "51999990000",           // WhatsApp do cliente
+      empresaWhatsapp: "5551999999999",          // ← Número da Sul Placas
+      totalCashCents:  657000,                  // R$ 6.570,00
+      expiresAt:       new Date(Date.now() + 47 * 3600_000 + 59 * 60_000).toISOString(),
+      pool: { lengthM: 8, widthM: 4, areaM2: 32, region: "Região Metropolitana" },
+    };
+    const RATE_12X = 0.12;
+    const RATE_18X = 0.16;
+
+    // ── Estado reativo ──────────────────────────────────────────────────────
+    let state = { thermalCover: false, wifiController: false };
+
+    function getExtrasCents() {
+      return (state.thermalCover ? 60000 : 0) + (state.wifiController ? 45000 : 0);
+    }
+
+    function getTotalCents() {
+      return PROPOSAL.totalCashCents + getExtrasCents();
+    }
+
+    // ── Formatação BRL ──────────────────────────────────────────────────────
+    function brl(cents) {
+      return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    }
+
+    function installment(totalCents, rate, months) {
+      return brl(Math.round((totalCents * (1 + rate)) / months));
+    }
+
+    // ── Atualização dos preços na tela ──────────────────────────────────────
+    function updatePrices() {
+      const total = getTotalCents();
+      document.getElementById("price-cash").textContent = brl(total);
+      document.getElementById("price-12x").textContent  = installment(total, RATE_12X, 12);
+      document.getElementById("price-18x").textContent  = installment(total, RATE_18X, 18);
+
+      const summary = document.getElementById("cta-summary");
+      if (getExtrasCents() > 0) {
+        document.getElementById("cta-total-display").textContent = brl(total);
+        summary.style.display = "flex";
+      } else {
+        summary.style.display = "none";
+      }
+    }
+
+    // ── Toggle de upsell ────────────────────────────────────────────────────
+    function toggleUpsell(btn) {
+      const id = btn.id;
+      if (id === "toggle-thermal")  state.thermalCover    = !state.thermalCover;
+      if (id === "toggle-wifi")     state.wifiController  = !state.wifiController;
+
+      btn.classList.toggle("is-checked");
+      btn.setAttribute("aria-pressed", btn.classList.contains("is-checked"));
+      updatePrices();
+
+      // Persiste no servidor (debounce de 1.5s)
+      clearTimeout(btn._saveTimer);
+      btn._saveTimer = setTimeout(() => persistUpsells(), 1500);
+    }
+
+    async function persistUpsells() {
+      try {
+        await fetch(`/api/proposals/${PROPOSAL.id}/upsells`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ thermalCover: state.thermalCover, wifiController: state.wifiController }),
+        });
+      } catch { /* falha silenciosa */ }
+    }
+
+    // ── Aprovação via WhatsApp ───────────────────────────────────────────────
+    function handleApprove() {
+      const extras = [];
+      if (state.thermalCover)   extras.push("Capa Térmica");
+      if (state.wifiController) extras.push("Controlador Wi-Fi");
+
+      const extrasLine = extras.length
+        ? `\n✅ Adicionais: ${extras.join(", ")}`
+        : "\n➖ Sem adicionais";
+
+      const msg = encodeURIComponent(
+        `Olá! Gostaria de *APROVAR* minha proposta Sul Placas! ☀️\n\n` +
+        `👤 *${PROPOSAL.clientName}*\n` +
+        `🏊 Piscina: ${PROPOSAL.pool.lengthM}m × ${PROPOSAL.pool.widthM}m (${PROPOSAL.pool.areaM2}m²)\n` +
+        extrasLine +
+        `\n💰 Valor à vista: *${brl(getTotalCents())}*\n\n` +
+        `Aguardo contato para agendar a instalação!`
+      );
+
+      // Marca como aprovada no servidor (sem await para não bloquear)
+      fetch(`/api/proposals/${PROPOSAL.id}/approve`, { method: "PATCH" }).catch(() => {});
+
+      window.open(`https://wa.me/${PROPOSAL.empresaWhatsapp}?text=${msg}`, "_blank", "noopener");
+    }
+
+    // ── Exportar PDF ────────────────────────────────────────────────────────
+    async function handleExportPDF() {
+      const btn = document.querySelector(".pdf-btn");
+      const originalText = btn.innerHTML;
+      btn.textContent = "⏳ Gerando PDF…";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/proposals/${PROPOSAL.id}/pdf?thermal=${state.thermalCover}&wifi=${state.wifiController}`);
+        if (!res.ok) throw new Error("Erro ao gerar PDF");
+
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href     = url;
+        a.download = `proposta-sulplacas-${PROPOSAL.clientName.replace(/\s+/g,"-").toLowerCase()}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        alert("Não foi possível gerar o PDF. Tente novamente.");
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // ── Countdown de 48h ────────────────────────────────────────────────────
+    function startCountdown() {
+      const el = document.getElementById("countdown");
+      const tick = () => {
+        const diff = new Date(PROPOSAL.expiresAt).getTime() - Date.now();
+        if (diff <= 0) { el.textContent = "Expirado"; return; }
+        const h = Math.floor(diff / 3_600_000);
+        const m = Math.floor((diff % 3_600_000) / 60_000);
+        const s = Math.floor((diff % 60_000) / 1_000);
+        el.textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    startCountdown();
+    updatePrices();
+  </script>
+
+</body>
+</html>
