@@ -180,7 +180,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 520, margin: '0 auto', padding: 16 }}>
+    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 520, margin: '0 auto', padding: 16, color: '#F8FAFC' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>⚡ Sul Placas — Admin</h1>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -188,6 +188,7 @@ export default function AdminPage() {
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer',
             background: tab === t ? '#F59E0B' : '#f3f4f6',
+            color: tab === t ? '#fff' : '#111827',
             fontWeight: tab === t ? 700 : 400,
           }}>
             {t === 'nova' ? '+ Nova' : t === 'propostas' ? '📋 Propostas' : '⚙️ Config'}
@@ -205,9 +206,9 @@ export default function AdminPage() {
             <Input label="Largura (m)" value={form.widthM} onChange={(v) => setForm({ ...form, widthM: v })} type="number" />
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>Cidade do cliente</label>
+            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4, color: '#F8FAFC' }}>Cidade do cliente</label>
             <select value={form.clientCity} onChange={(e) => handleCitySelect(e.target.value)}
-              style={{ width: '100%', padding: '10px 8px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 15 }}>
+              style={{ width: '100%', padding: '10px 8px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 15, color: '#111827', background: '#fff' }}>
               <option value="">Selecione a cidade...</option>
               {cities.map((c) => (
                 <option key={c.name} value={c.name}>{c.name} — {fmt(c.displacementCents)} deslocamento</option>
@@ -215,19 +216,19 @@ export default function AdminPage() {
             </select>
           </div>
           {form.clientCity && (
-            <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
+            <p style={{ fontSize: 13, color: '#cbd5e1', margin: 0 }}>
               Deslocamento: <strong>{fmt(form.displacementCostCents)}</strong>
             </p>
           )}
           {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
           <button onClick={handleSubmit} disabled={loading} style={{
             background: '#F59E0B', border: 'none', borderRadius: 10, padding: '14px 0',
-            fontWeight: 700, fontSize: 16, cursor: 'pointer', marginTop: 4,
+            fontWeight: 700, fontSize: 16, cursor: 'pointer', marginTop: 4, color: '#fff'
           }}>
             {loading ? 'Gerando...' : 'Gerar Proposta'}
           </button>
           {result && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: 16 }}>
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: 16, color: '#111827' }}>
               <p style={{ fontWeight: 700, marginBottom: 8 }}>✅ Proposta gerada!</p>
               <p style={{ fontSize: 13, marginBottom: 4 }}>
                 Área: <strong>{result.pricing?.areaM2} m²</strong> | À vista: <strong>{result.pricing?.totalCash}</strong>
@@ -252,9 +253,9 @@ export default function AdminPage() {
       {tab === 'propostas' && (
         <div>
           {proposals.length === 0
-            ? <p style={{ color: '#6b7280' }}>Nenhuma proposta ainda.</p>
+            ? <p style={{ color: '#9ca3af' }}>Nenhuma proposta ainda.</p>
             : proposals.map((p) => (
-              <div key={p.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+              <div key={p.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 14, marginBottom: 12, color: '#111827' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <strong>{p.client?.name}</strong>
@@ -275,7 +276,7 @@ export default function AdminPage() {
                 <button
                   onClick={() => fetchViews(p.id)}
                   style={{
-                    marginTop: 10, fontSize: 12, background: '#f3f4f6',
+                    marginTop: 10, fontSize: 12, background: '#f3f4f6', color: '#111827',
                     border: '1px solid #e5e7eb', borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
                   }}
                 >
@@ -320,11 +321,11 @@ export default function AdminPage() {
               <button onClick={startNewUpsell} style={btnStyle('#F59E0B')}>+ Novo</button>
             </div>
             {editingUpsell && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-                <Input label="Nome" value={upsellForm.name} onChange={(v) => setUpsellForm({ ...upsellForm, name: v })} />
-                <Input label="Descrição" value={upsellForm.description} onChange={(v) => setUpsellForm({ ...upsellForm, description: v })} />
-                <Input label="Preço (R$)" value={upsellForm.priceCents} onChange={(v) => setUpsellForm({ ...upsellForm, priceCents: v })} type="number" />
-                <Input label="Ordem" value={upsellForm.sortOrder} onChange={(v) => setUpsellForm({ ...upsellForm, sortOrder: v })} type="number" />
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, marginBottom: 12, color: '#111827' }}>
+                <Input labelColor="#111827" label="Nome" value={upsellForm.name} onChange={(v) => setUpsellForm({ ...upsellForm, name: v })} />
+                <Input labelColor="#111827" label="Descrição" value={upsellForm.description} onChange={(v) => setUpsellForm({ ...upsellForm, description: v })} />
+                <Input labelColor="#111827" label="Preço (R$)" value={upsellForm.priceCents} onChange={(v) => setUpsellForm({ ...upsellForm, priceCents: v })} type="number" />
+                <Input labelColor="#111827" label="Ordem" value={upsellForm.sortOrder} onChange={(v) => setUpsellForm({ ...upsellForm, sortOrder: v })} type="number" />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <input type="checkbox" checked={upsellForm.active}
                     onChange={(e) => setUpsellForm({ ...upsellForm, active: e.target.checked })} id="active" />
@@ -337,7 +338,7 @@ export default function AdminPage() {
               </div>
             )}
             {upsells.map((u) => (
-              <div key={u.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+              <div key={u.id} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 8, color: '#111827' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <strong>{u.name}</strong>
@@ -363,10 +364,10 @@ export default function AdminPage() {
                 style={btnStyle('#F59E0B')}>+ Nova</button>
             </div>
             {(editingCityIdx !== null || (cityForm.name === '' && cityForm.displacementCents === 0)) && editingCityIdx !== null || cityForm.name !== '' ? (
-              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-                <Input label="Nome da cidade / região" value={cityForm.name}
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, marginBottom: 12, color: '#111827' }}>
+                <Input labelColor="#111827" label="Nome da cidade / região" value={cityForm.name}
                   onChange={(v) => setCityForm({ ...cityForm, name: v })} />
-                <Input label="Deslocamento (R$)" value={String(cityForm.displacementCents / 100)}
+                <Input labelColor="#111827" label="Deslocamento (R$)" value={String(cityForm.displacementCents / 100)}
                   onChange={(v) => setCityForm({ ...cityForm, displacementCents: Math.round(parseFloat(v || '0') * 100) })}
                   type="number" />
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -377,7 +378,7 @@ export default function AdminPage() {
               </div>
             ) : null}
             {cities.map((c, i) => (
-              <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+              <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 8, color: '#111827' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <strong>{c.name}</strong>
@@ -397,14 +398,14 @@ export default function AdminPage() {
   );
 }
 
-function Input({ label, value, onChange, type = 'text' }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string;
+function Input({ label, value, onChange, type = 'text', labelColor = '#F8FAFC' }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; labelColor?: string;
 }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4, color: labelColor }}>{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        style={{ width: '100%', padding: '10px 8px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 15, boxSizing: 'border-box' }} />
+        style={{ width: '100%', padding: '10px 8px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 15, boxSizing: 'border-box', color: '#111827', background: '#fff' }} />
     </div>
   );
 }

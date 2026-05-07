@@ -1,5 +1,4 @@
 // frontend/pages/proposta/[id].tsx
-// Substitui o arquivo existente
 
 import { useState } from 'react';
 import Head from 'next/head';
@@ -240,6 +239,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto',
     padding: '0 0 40px',
     background: '#f9fafb',
+    color: '#111827', // <-- Adicionado para garantir o fallback do texto global
     minHeight: '100vh',
   },
   header: {
@@ -260,6 +260,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: '#fff',
+    color: '#111827', // <-- Explicitado
     margin: '12px 16px',
     borderRadius: 16,
     padding: 20,
@@ -295,6 +296,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+    color: '#111827', // <-- Explicitado
     transition: 'all 0.15s',
   },
   upsellCheck: { flexShrink: 0 },
@@ -338,6 +340,7 @@ const styles: Record<string, React.CSSProperties> = {
   approvedBox: {
     textAlign: 'center',
     background: '#f0fdf4',
+    color: '#111827', // <-- Explicitado
     borderRadius: 12,
     padding: 20,
     border: '1px solid #86efac',
