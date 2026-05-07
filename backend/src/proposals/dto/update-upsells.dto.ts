@@ -1,5 +1,8 @@
-import { IsBoolean } from 'class-validator';
+import { IsArray, IsString } from 'class-validator';
+
 export class UpdateUpsellsDto {
-  @IsBoolean() thermalCover: boolean;
-  @IsBoolean() wifiController: boolean;
+  /** Array de IDs de UpsellProduct selecionados pelo cliente */
+  @IsArray()
+  @IsString({ each: true })
+  selectedUpsellIds: string[];
 }

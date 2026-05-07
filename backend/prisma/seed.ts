@@ -1,40 +1,103 @@
-// prisma/seed.ts
-// Sul Placas — Seed inicial do banco de dados
-// Execução: npx prisma db seed
+// backend/prisma/seed.ts
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Iniciando seed do banco Sul Placas...");
+  console.log('🌱 Seeding...');
 
-  // ── PricingConfig — constantes editáveis de negócio ────────────────────────
-  const configs = [
-    { key: "BASE_PRICE",            valueCents: 390_000, description: "Valor base piscinas até 18m² (R$ 3.900,00)" },
-    { key: "BASE_AREA_M2",          valueCents: 18,      description: "Área base inclusa em metros quadrados" },
-    { key: "EXCESS_M2_PRICE",       valueCents: 18_000,  description: "Preço por m² excedente além dos 18m² base (R$ 180,00)" },
-    { key: "DISPLACEMENT_RADIUS_1", valueCents: 0,       description: "Porto Alegre e arredores — sem taxa" },
-    { key: "DISPLACEMENT_RADIUS_2", valueCents: 15_000,  description: "Região Metropolitana (R$ 150,00)" },
-    { key: "DISPLACEMENT_RADIUS_3", valueCents: 40_000,  description: "Interior / Litoral (R$ 400,00)" },
-    { key: "RATE_12X_PERCENT",      valueCents: 12,      description: "Taxa maquininha parcelamento 12x (%)" },
-    { key: "RATE_18X_PERCENT",      valueCents: 16,      description: "Taxa maquininha parcelamento 18x (%)" },
-    { key: "UPSELL_THERMAL_COVER",  valueCents: 60_000,  description: "Capa Térmica (R$ 600,00)" },
-    { key: "UPSELL_WIFI_CTRL",      valueCents: 45_000,  description: "Controlador Wi-Fi (R$ 450,00)" },
-    { key: "PROPOSAL_VALIDITY_HOURS", valueCents: 48,    description: "Validade da proposta em horas" },
+  // ── PricingConfig (campo "value") ─────────────────────────────────────────
+  const pricingEntries = [
+    { key: 'BASE_PRICE',           value: 390000, label: 'Preço base (até 18m²)' },
+    { key: 'BASE_AREA_LIMIT_M2',   value: 1800,   label: 'Área limite base (m² × 100)' },
+    { key: 'EXCESS_PER_M2',        value: 18000,  label: 'Excedente por m² acima do limite' },
+    { key: 'INSTALLMENT_12X_RATE', value: 112,    label: 'Taxa 12x (112 = 1.12x)' },
+    { key: 'INSTALLMENT_18X_RATE', value: 116,    label: 'Taxa 18x (116 = 1.16x)' },
   ];
 
-  for (const cfg of configs) {
+  for (const entry of pricingEntries) {
     await prisma.pricingConfig.upsert({
-      where:  { key: cfg.key },
-      update: { valueCents: cfg.valueCents, description: cfg.description },
-      create: cfg,
+      where:  { key: entry.key },
+      update: {},
+      create: entry,
     });
-    console.log(`  ✓ PricingConfig: ${cfg.key} = ${cfg.valueCents}`);
+  }
+  console.log(`✅ ${pricingEntries.length} pricing configs`);
+
+  // ── CityConfig ────────────────────────────────────────────────────────────
+  const cities = [
+    { name: 'Porto Alegre',         state: 'RS', baseDeslocamento: 0 },
+    { name: 'Região Metropolitana', state: 'RS', baseDeslocamento: 15000 },
+    { name: 'Interior / Litoral',   state: 'RS', baseDeslocamento: 40000 },
+  ];
+
+  for (const city of cities) {
+    await prisma.cityConfig.upsert({
+      where:  { name: city.name },
+      update: {},
+      create: city,
+    });
+  }
+  console.log(`✅ ${cities.length} cidades`);
+
+  // ── ExtraProduct ──────────────────────────────────────────────────────────
+  const existingExtra = await prisma.extraProduct.count();
+  if (existingExtra === 0) {
+    await prisma.extraProduct.createMany({
+      data: [
+        {
+          name:        'Capa Térmica',
+          description: 'Reduz a perda de calor em até 70%, mantendo a temperatura da piscina por mais tempo.',
+          price:       60000,
+          icon:        '🌡️',
+          isActive:    true,
+          sortOrder:   1,
+        },
+        {
+          name:        'Controlador Wi-Fi',
+          description: 'Controle a temperatura da sua piscina pelo celular, em qualquer lugar.',
+          price:       45000,
+          icon:        '📱',
+          isActive:    true,
+          sortOrder:   2,
+        },
+      ],
+    });
+    console.log('✅ 2 extra products');
+  } else {
+    console.log(`ℹ️  ${existingExtra} extra products já existem`);
   }
 
-  console.log("✅ Seed concluído!");
+  // ── UpsellProduct (usado pelo proposals.service) ──────────────────────────
+  const existingUpsell = await prisma.upsellProduct.count();
+  if (existingUpsell === 0) {
+    await prisma.upsellProduct.createMany({
+      data: [
+        {
+          name:        'Capa Térmica',
+          description: 'Reduz a perda de calor em até 70%, mantendo a temperatura da piscina por mais tempo.',
+          priceCents:  60000,
+          active:      true,
+          sortOrder:   1,
+        },
+        {
+          name:        'Controlador Wi-Fi',
+          description: 'Controle a temperatura da sua piscina pelo celular, em qualquer lugar.',
+          priceCents:  45000,
+          active:      true,
+          sortOrder:   2,
+        },
+      ],
+    });
+    console.log('✅ 2 upsell products');
+  } else {
+    console.log(`ℹ️  ${existingUpsell} upsell products já existem`);
+  }
+
+  console.log('🎉 Seed concluído!');
 }
 
 main()
   .catch((e) => { console.error(e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .finally(() => prisma.$disconnect());

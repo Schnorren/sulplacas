@@ -1,6 +1,4 @@
-// prisma/schema.prisma — v2
-// Novos campos: city (Feature 3), follow-up tracking (Feature 2),
-// signature (Feature 8), ROI fields (Feature 7)
+// backend/prisma/schema.prisma — versão completa com ProposalView
 
 generator client {
   provider = "prisma-client-js"
@@ -11,142 +9,119 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── ENUMS ────────────────────────────────────────────────────────────────────
-
-enum Region {
-  PORTO_ALEGRE
-  REGIAO_METRO
-  INTERIOR_LITORAL
-}
-
 enum ProposalStatus {
   DRAFT
   SENT
   VIEWED
   APPROVED
   EXPIRED
-  LOST
 }
-
-enum FollowupType {
-  VIEWED_NOT_APPROVED
-  NEVER_OPENED_24H
-  NEVER_OPENED_72H
-  MANUAL
-}
-
-// ─── CLIENT ───────────────────────────────────────────────────────────────────
 
 model Client {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  whatsapp  String   @unique
-  city      String?                        // Feature 3 — cidade do cliente
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt            @map("updated_at")
-
+  whatsapp  String     @unique
+  createdAt DateTime   @default(now()) @map("created_at")
   proposals Proposal[]
 
   @@map("clients")
 }
 
-// ─── PROPOSAL ─────────────────────────────────────────────────────────────────
-
 model Proposal {
-  id       String @id @default(uuid())
-  clientId String @map("client_id")
+  id        String @id @default(uuid())
+  clientId  String @map("client_id")
+  client    Client @relation(fields: [clientId], references: [id])
 
-  // ── Piscina ──────────────────────────────────────────────────────────────
-  lengthM Float  @map("length_m")
-  widthM  Float  @map("width_m")
-  areaM2  Float  @map("area_m2")
-  region  Region
-  city    String?                          // Feature 3 — cidade (desnormalizado para histórico)
+  lengthM Float @map("length_m")
+  widthM  Float @map("width_m")
+  areaM2  Float @map("area_m2")
 
-  // ── Valores calculados (centavos) ────────────────────────────────────────
-  baseValueCents          Int @map("base_value_cents")
-  excessAreaValueCents    Int @map("excess_area_value_cents")
-  displacementValueCents  Int @map("displacement_value_cents")
-  totalCashCents          Int @map("total_cash_cents")
-  total12xGrossCents      Int @map("total_12x_gross_cents")
-  installment12xCents     Int @map("installment_12x_cents")
-  total18xGrossCents      Int @map("total_18x_gross_cents")
-  installment18xCents     Int @map("installment_18x_cents")
+  clientCity            String @default("Porto Alegre") @map("client_city")
+  displacementCostCents Int    @default(0) @map("displacement_cost_cents")
 
-  // ── Upsells ──────────────────────────────────────────────────────────────
-  thermalCoverPriceCents    Int     @default(60000)  @map("thermal_cover_price_cents")
-  wifiControllerPriceCents  Int     @default(30000)  @map("wifi_controller_price_cents")  // Feature: R$300
-  selectedThermalCover      Boolean @default(false)  @map("selected_thermal_cover")
-  selectedWifiController    Boolean @default(false)  @map("selected_wifi_controller")
+  basePriceCents   Int @map("base_price_cents")
+  excessPriceCents Int @default(0) @map("excess_price_cents")
+  totalCashCents   Int @map("total_cash_cents")
 
-  // ── Feature 7: ROI personalizado ─────────────────────────────────────────
-  roiDaysWithout     Int     @default(90)    @map("roi_days_without")    // dias/ano sem aquecimento
-  roiDaysWith        Int     @default(270)   @map("roi_days_with")       // dias/ano com aquecimento
-  roiExtraDays       Int     @default(180)   @map("roi_extra_days")      // diferença
-  roiDailyCostCents  Int     @default(0)     @map("roi_daily_cost_cents") // valor/dia de lazer calculado
-  roiMonths          Int     @default(0)     @map("roi_months")          // meses para "pagar" o sistema
+  selectedUpsellIds String[] @default([]) @map("selected_upsell_ids")
+  upsellTotalCents  Int      @default(0) @map("upsell_total_cents")
 
-  // ── Rastreamento ─────────────────────────────────────────────────────────
+  expiresAt DateTime? @map("expires_at")
+
+  followupSentAt DateTime? @map("followup_sent_at")
+  followupWaLink String?   @map("followup_wa_link")
+  followupType   String?   @map("followup_type")
+  hotAlertSentAt DateTime? @map("hot_alert_sent_at")
+
   status       ProposalStatus @default(DRAFT)
-  viewCount    Int            @default(0)   @map("view_count")
-  lastViewedAt DateTime?                    @map("last_viewed_at")
+  viewCount    Int            @default(0) @map("view_count")
+  lastViewedAt DateTime?      @map("last_viewed_at")
 
-  // ── Feature 2: Follow-up automático ──────────────────────────────────────
-  followupSentAt       DateTime?    @map("followup_sent_at")
-  followupWaLink       String?      @map("followup_wa_link")
-  followupType         FollowupType? @map("followup_type")
-  hotAlertSentAt       DateTime?    @map("hot_alert_sent_at")
-  approvalMessageLink  String?      @map("approval_message_link")
-
-  // ── Feature 8: Assinatura digital ────────────────────────────────────────
-  signedAt        DateTime? @map("signed_at")
-  signatureName   String?   @map("signature_name")   // nome digitado pelo cliente
-  signatureIp     String?   @map("signature_ip")     // IP do cliente no momento
-  signatureDevice String?   @map("signature_device") // User-Agent resumido
-
-  // ── Validade ─────────────────────────────────────────────────────────────
-  expiresAt DateTime @map("expires_at")              // +7 dias da criação
-
-  // ── Feature 6: Foto real ─────────────────────────────────────────────────
-  installationPhotoUrl String? @map("installation_photo_url") // URL da foto de instalação
+  // Histórico de visualizações
+  views ProposalView[]
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([followupSentAt])
   @@map("proposals")
 }
 
-// ─── PRICING CONFIG ───────────────────────────────────────────────────────────
+model ProposalView {
+  id         String   @id @default(uuid())
+  proposalId String   @map("proposal_id")
+  proposal   Proposal @relation(fields: [proposalId], references: [id])
+  viewedAt   DateTime @default(now()) @map("viewed_at")
+  userAgent  String?  @map("user_agent")
+  ip         String?
 
-model PricingConfig {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique
-  valueCents  Int      @map("value_cents")
-  description String
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("pricing_configs")
+  @@map("proposal_views")
 }
 
-// ─── MIGRATION NOTES ──────────────────────────────────────────────────────────
-// npx prisma migrate dev --name v2_city_followup_signature_roi
-//
-// Novos campos vs schema v1:
-//   clients.city                     — Feature 3
-//   proposals.city                   — Feature 3 (desnormalizado)
-//   proposals.roi_*                  — Feature 7
-//   proposals.followup_*             — Feature 2
-//   proposals.hot_alert_sent_at      — Feature 2
-//   proposals.approval_message_link  — Feature 2
-//   proposals.signed_at              — Feature 8
-//   proposals.signature_name         — Feature 8
-//   proposals.signature_ip           — Feature 8
-//   proposals.signature_device       — Feature 8
-//   proposals.installation_photo_url — Feature 6
-//   proposals.wifi_controller_price  — atualizado de 45000 → 30000 (R$300)
+model ExtraProduct {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  price       Int
+  icon        String   @default("")
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("extra_products")
+}
+
+model CityConfig {
+  id               String   @id @default(uuid())
+  name             String   @unique
+  state            String   @default("RS")
+  baseDeslocamento Int      @map("base_deslocamento")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("city_configs")
+}
+
+model PricingConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Int
+  label     String   @default("")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("pricing_config")
+}
+
+model UpsellProduct {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  priceCents  Int      @map("price_cents")
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("upsell_products")
+}
