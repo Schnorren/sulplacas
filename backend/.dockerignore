@@ -1,0 +1,15 @@
+# backend/.dockerignore
+node_modules
+dist
+.git
+.gitignore
+*.md
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+coverage
+.nyc_output
+.DS_Store
+Thumbs.db

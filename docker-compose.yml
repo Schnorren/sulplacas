@@ -1,3 +1,4 @@
+# docker-compose.yml
 services:
   postgres:
     image: postgres:16-alpine
@@ -40,8 +41,9 @@ services:
       context:    ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3001/api
-        INTERNAL_API_URL: http://backend:3001/api
+        NEXT_PUBLIC_API_URL:      http://localhost:3001/api
+        NEXT_PUBLIC_FRONTEND_URL: http://localhost:3000
+        INTERNAL_API_URL:         http://backend:3001/api
     container_name: sulplacas-web
     restart: unless-stopped
     depends_on:

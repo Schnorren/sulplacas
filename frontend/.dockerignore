@@ -1,0 +1,13 @@
+# frontend/.dockerignore
+node_modules
+.next
+.git
+.gitignore
+*.md
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.local
+.DS_Store
+Thumbs.db

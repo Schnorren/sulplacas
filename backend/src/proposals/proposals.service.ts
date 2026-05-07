@@ -30,15 +30,27 @@ export class ProposalsService {
     const configs = await this.prisma.pricingConfig.findMany();
     const cfg = Object.fromEntries(configs.map((c) => [c.key, c.value]));
 
-    const basePriceCents = cfg['BASE_PRICE']          ?? 390000;
-    const baseAreaLimit  = (cfg['BASE_AREA_LIMIT_M2'] ?? 1800) / 100;
-    const excessPerM2    = cfg['EXCESS_PER_M2']       ?? 18000;
-    const rate12x        = cfg['INSTALLMENT_12X_RATE'] ?? 112;
-    const rate18x        = cfg['INSTALLMENT_18X_RATE'] ?? 116;
+    const basePriceCents       = cfg['BASE_PRICE']             ?? 390000;
+    const baseAreaLimit        = (cfg['BASE_AREA_LIMIT_M2']    ?? 1800) / 100;
+    const excessPerM2          = cfg['EXCESS_PER_M2']          ?? 18000;
+    const rate12x              = cfg['INSTALLMENT_12X_RATE']   ?? 112;
+    const rate18x              = cfg['INSTALLMENT_18X_RATE']   ?? 116;
 
+    // Extra por m² de placas coletoras — invisível no breakdown, some no total
+    const collectorExtraPerM2  = cfg['COLLECTOR_EXTRA_PER_M2'] ?? 0;
+
+    // Taxa da maquininha em centésimos de % (ex: 350 = 3.50%)
+    // Usado para calcular o total com maquininha
+    const cardMachineRateBp    = cfg['CARD_MACHINE_RATE']      ?? 0;
+
+    // Excedente de área
     const excessM2 = Math.max(0, areaM2 - baseAreaLimit);
     const excessPriceCents = Math.round(excessM2 * excessPerM2);
 
+    // Extra coletores (embutido no total, sem linha separada)
+    const collectorExtraCents = Math.round(areaM2 * collectorExtraPerM2);
+
+    // Upsells selecionados
     let upsellTotalCents = 0;
     if (selectedUpsellIds.length > 0) {
       const upsells = await this.prisma.upsellProduct.findMany({
@@ -48,18 +60,34 @@ export class ProposalsService {
     }
 
     const totalCashCents =
-      basePriceCents + excessPriceCents + displacementCostCents + upsellTotalCents;
+      basePriceCents +
+      excessPriceCents +
+      collectorExtraCents +
+      displacementCostCents +
+      upsellTotalCents;
+
+    // Total com maquininha = totalCash * (1 + rate/10000)
+    const cardRate = 1 + cardMachineRateBp / 10000;
+    const totalCardCents = Math.round(totalCashCents * cardRate);
 
     return {
       basePriceCents,
       excessPriceCents,
+      collectorExtraCents,
       upsellTotalCents,
       totalCashCents,
       pricing: {
         areaM2,
         totalCash:      this.formatBRL(totalCashCents),
+        totalCard:      cardMachineRateBp > 0 ? this.formatBRL(totalCardCents) : null,
         installment12x: this.formatInstallment(totalCashCents, rate12x, 12),
         installment18x: this.formatInstallment(totalCashCents, rate18x, 18),
+        cardInstallment12x: cardMachineRateBp > 0
+          ? this.formatInstallment(totalCardCents, rate12x, 12)
+          : null,
+        cardInstallment18x: cardMachineRateBp > 0
+          ? this.formatInstallment(totalCardCents, rate18x, 18)
+          : null,
       },
     };
   }
@@ -116,7 +144,6 @@ export class ProposalsService {
     });
   }
 
-  // ── findOne: registra view com timestamp ──────────────────────────────────
   async findOne(id: string, userAgent?: string, ip?: string) {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id },
@@ -124,16 +151,10 @@ export class ProposalsService {
     });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
 
-    // Registrar view com timestamp individual
     await this.prisma.proposalView.create({
-      data: {
-        proposalId: id,
-        userAgent:  userAgent ?? null,
-        ip:         ip ?? null,
-      },
+      data: { proposalId: id, userAgent: userAgent ?? null, ip: ip ?? null },
     });
 
-    // Atualizar contadores na proposta
     await this.prisma.proposal.update({
       where: { id },
       data: {
@@ -157,13 +178,11 @@ export class ProposalsService {
     return { ...proposal, availableUpsells: allUpsells, pricing };
   }
 
-  // ── Histórico de visualizações de uma proposta ────────────────────────────
   async getViews(id: string) {
-    const views = await this.prisma.proposalView.findMany({
+    return this.prisma.proposalView.findMany({
       where:   { proposalId: id },
       orderBy: { viewedAt: 'desc' },
     });
-    return views;
   }
 
   async updateUpsells(id: string, dto: UpdateUpsellsDto) {
@@ -178,11 +197,7 @@ export class ProposalsService {
 
     const updated = await this.prisma.proposal.update({
       where: { id },
-      data: {
-        selectedUpsellIds: dto.selectedUpsellIds,
-        upsellTotalCents,
-        totalCashCents,
-      },
+      data: { selectedUpsellIds: dto.selectedUpsellIds, upsellTotalCents, totalCashCents },
       include: { client: true },
     });
 
@@ -194,6 +209,22 @@ export class ProposalsService {
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
     return this.prisma.proposal.update({ where: { id }, data: { status: 'APPROVED' } });
   }
+
+  // ── Pricing Config ────────────────────────────────────────────────────────
+
+  async getPricingConfigs() {
+    return this.prisma.pricingConfig.findMany({ orderBy: { key: 'asc' } });
+  }
+
+  async updatePricingConfig(key: string, value: number) {
+    return this.prisma.pricingConfig.upsert({
+      where:  { key },
+      update: { value },
+      create: { key, value, label: key },
+    });
+  }
+
+  // ── Upsell Products ───────────────────────────────────────────────────────
 
   async listUpsellProducts() {
     return this.prisma.upsellProduct.findMany({ orderBy: { sortOrder: 'asc' } });

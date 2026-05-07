@@ -27,6 +27,13 @@ interface ProposalView {
   ip: string | null;
 }
 
+interface PricingConfig {
+  id: string;
+  key: string;
+  value: number;
+  label: string;
+}
+
 const DEFAULT_CITIES: CityConfig[] = [
   { name: 'Porto Alegre',          displacementCents: 0 },
   { name: 'Região Metropolitana',  displacementCents: 15000 },
@@ -68,6 +75,10 @@ export default function AdminPage() {
   const [cityForm, setCityForm] = useState<CityConfig>({ name: '', displacementCents: 0 });
   const [editingCityIdx, setEditingCityIdx] = useState<number | null>(null);
 
+  // Pricing
+  const [pricingConfigs, setPricingConfigs] = useState<PricingConfig[]>([]);
+  const [savingPricing, setSavingPricing] = useState<string | null>(null);
+
   useEffect(() => {
     const saved = localStorage.getItem('sulplacas_cities');
     if (saved) setCities(JSON.parse(saved));
@@ -75,7 +86,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (tab === 'propostas') fetchProposals();
-    if (tab === 'config') fetchUpsells();
+    if (tab === 'config') {
+      fetchUpsells();
+      fetchPricingConfigs();
+    }
   }, [tab]);
 
   async function fetchProposals() {
@@ -99,6 +113,34 @@ export default function AdminPage() {
     const data = await res.json();
     setViewsMap((m) => ({ ...m, [proposalId]: data }));
     setExpandedId(proposalId);
+  }
+
+  async function fetchPricingConfigs() {
+    const res = await fetch(`${API}/admin/pricing`);
+    setPricingConfigs(await res.json());
+  }
+
+  async function savePricingConfig(key: string, rawValue: string) {
+    setSavingPricing(key);
+    // Converter valor de entrada para centésimos conforme a chave
+    let value: number;
+    if (key === 'CARD_MACHINE_RATE') {
+      // usuário digita 3.5 → salva 350 (centésimos de %)
+      value = Math.round(parseFloat(rawValue) * 100);
+    } else if (key === 'BASE_AREA_LIMIT_M2') {
+      // usuário digita 18 (m²) → salva 1800 (m² × 100)
+      value = Math.round(parseFloat(rawValue) * 100);
+    } else {
+      // usuário digita R$ → salva centavos
+      value = Math.round(parseFloat(rawValue) * 100);
+    }
+    await fetch(`${API}/admin/pricing/${key}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    });
+    fetchPricingConfigs();
+    setSavingPricing(null);
   }
 
   function handleCitySelect(cityName: string) {
@@ -272,11 +314,31 @@ export default function AdminPage() {
                   <StatusBadge status={p.status} />
                 </div>
 
-                {/* Botão histórico */}
+                {/* Links da proposta */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' as const }}>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'http://localhost:3000'}/proposta/${p.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 12, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '5px 10px', textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    🔗 Ver proposta
+                  </a>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'}/proposals/${p.id}/pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 12, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '5px 10px', textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    📄 Baixar PDF
+                  </a>
+                </div>
+
+                {/* Botão histórico de views */}
                 <button
                   onClick={() => fetchViews(p.id)}
                   style={{
-                    marginTop: 10, fontSize: 12, background: '#f3f4f6', color: '#111827',
+                    marginTop: 8, fontSize: 12, background: '#f3f4f6', color: '#111827',
                     border: '1px solid #e5e7eb', borderRadius: 6, padding: '5px 10px', cursor: 'pointer',
                   }}
                 >
@@ -392,8 +454,89 @@ export default function AdminPage() {
               </div>
             ))}
           </section>
+
+          <hr style={{ margin: '20px 0', borderColor: '#e5e7eb' }} />
+
+          <section>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Precificação</h2>
+            <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 14px' }}>
+              Valores usados no cálculo automático das propostas.
+            </p>
+
+            {pricingConfigs
+              .filter((c) => ['BASE_PRICE', 'EXCESS_PER_M2', 'COLLECTOR_EXTRA_PER_M2', 'CARD_MACHINE_RATE'].includes(c.key))
+              .map((c) => (
+                <PricingRow
+                  key={c.key}
+                  config={c}
+                  saving={savingPricing === c.key}
+                  onSave={(raw) => savePricingConfig(c.key, raw)}
+                />
+              ))}
+          </section>
+
         </div>
       )}
+    </div>
+  );
+}
+
+function PricingRow({ config, saving, onSave }: {
+  config: { key: string; value: number; label: string };
+  saving: boolean;
+  onSave: (raw: string) => void;
+}) {
+  const labels: Record<string, { name: string; hint: string; display: (v: number) => string; parse: (v: number) => string }> = {
+    BASE_PRICE: {
+      name: 'Preço base',
+      hint: 'Valor cobrado até o limite de área (R$)',
+      display: (v) => String(v / 100),
+      parse:   (v) => String(v / 100),
+    },
+    EXCESS_PER_M2: {
+      name: 'Excedente por m²',
+      hint: 'Valor adicional por m² acima do limite (R$)',
+      display: (v) => String(v / 100),
+      parse:   (v) => String(v / 100),
+    },
+    COLLECTOR_EXTRA_PER_M2: {
+      name: 'Extra por m² de placas coletoras',
+      hint: 'Custo extra por m² — embutido no total, sem exibição separada (R$)',
+      display: (v) => String(v / 100),
+      parse:   (v) => String(v / 100),
+    },
+    CARD_MACHINE_RATE: {
+      name: 'Taxa da maquininha (%)',
+      hint: 'Percentual cobrado pela maquininha (ex: 3.5 = 3,50%)',
+      display: (v) => String(v / 100),
+      parse:   (v) => String(v / 100),
+    },
+  };
+
+  const meta = labels[config.key];
+  if (!meta) return null;
+
+  const [val, setVal] = useState(meta.display(config.value));
+
+  return (
+    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12, marginBottom: 10, color: '#111827' }}>
+      <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>{meta.name}</p>
+      <p style={{ fontSize: 11, color: '#6b7280', margin: '0 0 8px' }}>{meta.hint}</p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="number"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, background: '#fff', color: '#111827' }}
+        />
+        <button
+          onClick={() => onSave(val)}
+          disabled={saving}
+          style={{ background: saving ? '#9ca3af' : '#F59E0B', color: '#000', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, whiteSpace: 'nowrap' as const }}
+        >
+          {saving ? '...' : 'Salvar'}
+        </button>
+      </div>
     </div>
   );
 }
