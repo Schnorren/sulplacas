@@ -24,6 +24,7 @@ interface Pricing {
 
 interface ProposalData {
   id: string;
+  proposalCode: string;
   clientCity: string;
   displacementCostCents: number;
   areaM2: number;
@@ -34,6 +35,7 @@ interface ProposalData {
   pricing: Pricing;
   client: { name: string; whatsapp: string };
   status: string;
+  expiresAt?: string;
 }
 
 // ── SSR ────────────────────────────────────────────────────────────────────
@@ -58,16 +60,15 @@ const fmt = (cents: number) =>
 // ── Componente ─────────────────────────────────────────────────────────────
 
 export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set(proposal.selectedUpsellIds),
-  );
-  const [pricing, setPricing] = useState<Pricing>(proposal.pricing);
-  const [saving, setSaving] = useState(false);
-  const [approved, setApproved] = useState(proposal.status === 'APPROVED');
+  const [selected, setSelected]   = useState<Set<string>>(new Set(proposal.selectedUpsellIds));
+  const [pricing, setPricing]     = useState<Pricing>(proposal.pricing);
+  const [saving, setSaving]       = useState(false);
+  const [approved, setApproved]   = useState(proposal.status === 'APPROVED');
+  // Controla a mensagem de aviso quando a aprovação é revertida
+  const [revertedMsg, setRevertedMsg] = useState(false);
 
   const whatsapp = process.env.NEXT_PUBLIC_EMPRESA_WHATSAPP ?? '5551999999999';
 
-  // Toggle upsell e envia para o backend
   async function toggleUpsell(id: string) {
     const next = new Set(selected);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -83,17 +84,29 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
     if (res.ok) {
       const data = await res.json();
       setPricing(data.pricing);
+
+      // Se o status foi revertido de APPROVED para VIEWED,
+      // atualiza o botão e exibe aviso sem precisar recarregar
+      if (data.statusReverted) {
+        setApproved(false);
+        setRevertedMsg(true);
+        // Aviso some após 4 segundos
+        setTimeout(() => setRevertedMsg(false), 4000);
+      }
     }
     setSaving(false);
   }
 
   async function handleApprove() {
-    await fetch(`${API}/proposals/${proposal.id}/approve`, { method: 'PATCH' });
-    setApproved(true);
+    const res = await fetch(`${API}/proposals/${proposal.id}/approve`, { method: 'PATCH' });
+    if (res.ok) {
+      setApproved(true);
+      setRevertedMsg(false);
+    }
   }
 
   const whatsappMsg = encodeURIComponent(
-    `Olá! Quero aprovar meu orçamento Sul Placas.\nProposta: ${proposal.id}\nTotal: ${pricing.totalCash}`,
+    `Olá! Quero aprovar meu orçamento Sul Placas.\nProposta: ${proposal.proposalCode || proposal.id}\nTotal: ${pricing.totalCash}`,
   );
 
   return (
@@ -108,6 +121,11 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
         <header style={styles.header}>
           <div style={styles.logo}>☀️ Sul Placas</div>
           <p style={styles.tagline}>Aquecimento Solar de Piscinas</p>
+          {proposal.proposalCode && (
+            <p style={{ fontSize: 11, color: '#475569', margin: '4px 0 0', fontFamily: 'monospace' }}>
+              {proposal.proposalCode}
+            </p>
+          )}
         </header>
 
         {/* Saudação */}
@@ -119,7 +137,7 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
           </p>
           <div style={styles.specRow}>
             <Spec label="Dimensões" value={`${proposal.lengthM}m × ${proposal.widthM}m`} />
-            <Spec label="Área" value={`${proposal.areaM2} m²`} />
+            <Spec label="Área"      value={`${proposal.areaM2} m²`} />
             {proposal.displacementCostCents > 0 && (
               <Spec label="Deslocamento" value={fmt(proposal.displacementCostCents)} />
             )}
@@ -134,7 +152,7 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
             <span style={styles.installBadge}>12x {pricing.installment12x}</span>
             <span style={styles.installBadge}>18x {pricing.installment18x}</span>
           </div>
-          {saving && <p style={styles.savingText}>Atualizando...</p>}
+          {saving && <p style={styles.savingText}>Atualizando valores...</p>}
         </section>
 
         {/* Upsells */}
@@ -148,12 +166,13 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
               return (
                 <div
                   key={u.id}
-                  onClick={() => toggleUpsell(u.id)}
+                  onClick={() => !saving && toggleUpsell(u.id)}
                   style={{
                     ...styles.upsellItem,
-                    border: isSelected ? '2px solid #F59E0B' : '2px solid #e5e7eb',
+                    border:     isSelected ? '2px solid #F59E0B' : '2px solid #e5e7eb',
                     background: isSelected ? '#fffbeb' : '#fff',
-                    cursor: 'pointer',
+                    cursor:     saving ? 'wait' : 'pointer',
+                    opacity:    saving ? 0.7 : 1,
                   }}
                 >
                   <div style={styles.upsellCheck}>
@@ -180,20 +199,24 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
 
         {/* CTA */}
         <section style={styles.card}>
+          {/* Aviso de aprovação revertida */}
+          {revertedMsg && (
+            <div style={styles.revertedBanner}>
+              ⚠️ Você alterou os itens — confirme novamente para aprovar.
+            </div>
+          )}
+
           {approved ? (
             <div style={styles.approvedBox}>
-              <p style={{ fontSize: 20 }}>🎉</p>
-              <p style={{ fontWeight: 700, fontSize: 16 }}>Orçamento aprovado!</p>
-              <p style={{ fontSize: 13, color: '#166534' }}>
+              <p style={{ fontSize: 24, margin: '0 0 8px' }}>🎉</p>
+              <p style={{ fontWeight: 700, fontSize: 16, margin: '0 0 4px' }}>Orçamento aprovado!</p>
+              <p style={{ fontSize: 13, color: '#166534', margin: 0 }}>
                 Nossa equipe entrará em contato em breve.
               </p>
             </div>
           ) : (
             <>
-              <button
-                onClick={handleApprove}
-                style={styles.btnPrimary}
-              >
+              <button onClick={handleApprove} style={styles.btnPrimary}>
                 ✅ Aprovar Orçamento
               </button>
               <a
@@ -210,9 +233,11 @@ export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
 
         <footer style={styles.footer}>
           <p>Sul Placas — Aquecimento Solar</p>
-          <p style={{ fontSize: 11, color: '#9ca3af' }}>
-            Orçamento válido por 48h · {proposal.clientCity}
-          </p>
+          {proposal.expiresAt && (
+            <p style={{ fontSize: 11, color: '#9ca3af' }}>
+              Válida até {new Date(proposal.expiresAt).toLocaleDateString('pt-BR')} · {proposal.clientCity}
+            </p>
+          )}
         </footer>
       </div>
     </>
@@ -239,7 +264,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto',
     padding: '0 0 40px',
     background: '#f9fafb',
-    color: '#111827', // <-- Adicionado para garantir o fallback do texto global
+    color: '#111827',
     minHeight: '100vh',
   },
   header: {
@@ -260,7 +285,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: '#fff',
-    color: '#111827', // <-- Explicitado
+    color: '#111827',
     margin: '12px 16px',
     borderRadius: 16,
     padding: 20,
@@ -273,13 +298,13 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 24,
     textAlign: 'center',
   },
-  h1: { fontSize: 20, fontWeight: 700, margin: '0 0 8px' },
-  h2: { fontSize: 16, fontWeight: 700, margin: '0 0 6px' },
-  text: { fontSize: 14, color: '#374151', margin: '0 0 12px' },
-  specRow: { display: 'flex', justifyContent: 'space-around', marginTop: 12, gap: 8 },
-  priceLabel: { color: '#94a3b8', fontSize: 13, margin: '0 0 4px' },
-  priceValue: { color: '#F59E0B', fontSize: 36, fontWeight: 800, margin: '0 0 12px' },
-  installRow: { display: 'flex', justifyContent: 'center', gap: 12 },
+  h1:           { fontSize: 20, fontWeight: 700, margin: '0 0 8px' },
+  h2:           { fontSize: 16, fontWeight: 700, margin: '0 0 6px' },
+  text:         { fontSize: 14, color: '#374151', margin: '0 0 12px' },
+  specRow:      { display: 'flex', justifyContent: 'space-around', marginTop: 12, gap: 8 },
+  priceLabel:   { color: '#94a3b8', fontSize: 13, margin: '0 0 4px' },
+  priceValue:   { color: '#F59E0B', fontSize: 36, fontWeight: 800, margin: '0 0 12px' },
+  installRow:   { display: 'flex', justifyContent: 'center', gap: 12 },
   installBadge: {
     background: 'rgba(245,158,11,0.15)',
     color: '#F59E0B',
@@ -296,7 +321,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
-    color: '#111827', // <-- Explicitado
+    color: '#111827',
     transition: 'all 0.15s',
   },
   upsellCheck: { flexShrink: 0 },
@@ -340,10 +365,21 @@ const styles: Record<string, React.CSSProperties> = {
   approvedBox: {
     textAlign: 'center',
     background: '#f0fdf4',
-    color: '#111827', // <-- Explicitado
+    color: '#111827',
     borderRadius: 12,
     padding: 20,
     border: '1px solid #86efac',
+  },
+  revertedBanner: {
+    background: '#fefce8',
+    border: '1px solid #fde68a',
+    color: '#92400e',
+    borderRadius: 10,
+    padding: '10px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   footer: {
     textAlign: 'center',

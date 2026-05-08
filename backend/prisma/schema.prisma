@@ -1,4 +1,4 @@
-// backend/prisma/schema.prisma — versão completa com ProposalView
+// backend/prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -15,12 +15,15 @@ enum ProposalStatus {
   VIEWED
   APPROVED
   EXPIRED
+  NEGOTIATING
+  LOST
 }
 
 model Client {
   id        String     @id @default(uuid())
   name      String
   whatsapp  String     @unique
+  email     String?
   createdAt DateTime   @default(now()) @map("created_at")
   proposals Proposal[]
 
@@ -28,9 +31,10 @@ model Client {
 }
 
 model Proposal {
-  id        String @id @default(uuid())
-  clientId  String @map("client_id")
-  client    Client @relation(fields: [clientId], references: [id])
+  id           String @id @default(uuid())
+  proposalCode String @unique @map("proposal_code")
+  clientId     String @map("client_id")
+  client       Client @relation(fields: [clientId], references: [id])
 
   lengthM Float @map("length_m")
   widthM  Float @map("width_m")
@@ -38,6 +42,7 @@ model Proposal {
 
   clientCity            String @default("Porto Alegre") @map("client_city")
   displacementCostCents Int    @default(0) @map("displacement_cost_cents")
+  hiddenMarginCents     Int    @default(0) @map("hidden_margin_cents")
 
   basePriceCents   Int @map("base_price_cents")
   excessPriceCents Int @default(0) @map("excess_price_cents")
@@ -46,18 +51,20 @@ model Proposal {
   selectedUpsellIds String[] @default([]) @map("selected_upsell_ids")
   upsellTotalCents  Int      @default(0) @map("upsell_total_cents")
 
-  expiresAt DateTime? @map("expires_at")
+  validityDays  Int       @default(7) @map("validity_days")
+  expiresAt     DateTime? @map("expires_at")
+  internalNotes String?   @map("internal_notes")
 
-  followupSentAt DateTime? @map("followup_sent_at")
-  followupWaLink String?   @map("followup_wa_link")
-  followupType   String?   @map("followup_type")
-  hotAlertSentAt DateTime? @map("hot_alert_sent_at")
+  followupSentAt  DateTime? @map("followup_sent_at")
+  followupWaLink  String?   @map("followup_wa_link")
+  followupType    String?   @map("followup_type")
+  hotAlertSentAt  DateTime? @map("hot_alert_sent_at")
+  lastContactedAt DateTime? @map("last_contacted_at")
 
   status       ProposalStatus @default(DRAFT)
   viewCount    Int            @default(0) @map("view_count")
   lastViewedAt DateTime?      @map("last_viewed_at")
 
-  // Histórico de visualizações
   views ProposalView[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -124,4 +131,11 @@ model UpsellProduct {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("upsell_products")
+}
+
+model ProposalCounter {
+  id    String @id @default("singleton")
+  count Int    @default(0)
+
+  @@map("proposal_counter")
 }
