@@ -65,7 +65,8 @@ model Proposal {
   viewCount    Int            @default(0) @map("view_count")
   lastViewedAt DateTime?      @map("last_viewed_at")
 
-  views ProposalView[]
+  views  ProposalView[]
+  events ProposalEvent[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -82,6 +83,20 @@ model ProposalView {
   ip         String?
 
   @@map("proposal_views")
+}
+
+model ProposalEvent {
+  id         String   @id @default(uuid())
+  proposalId String   @map("proposal_id")
+  proposal   Proposal @relation(fields: [proposalId], references: [id])
+
+  // STATUS_CHANGED | UPSELLS_CHANGED | APPROVED | CONTACTED | NOTES_UPDATED | VIEWED | CREATED
+  type    String
+  payload Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("proposal_events")
 }
 
 model ExtraProduct {

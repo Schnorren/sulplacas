@@ -21,6 +21,8 @@ export class ProposalsController {
     private readonly prisma: PrismaService,
   ) {}
 
+  // ── Preview ───────────────────────────────────────────────────────────────
+
   @Post('proposals/preview')
   previewPrice(@Body() body: {
     lengthM: number; widthM: number;
@@ -32,15 +34,18 @@ export class ProposalsController {
     );
   }
 
+  // ── Proposals CRUD ────────────────────────────────────────────────────────
+
   @Post('proposals')
   create(@Body() dto: CreateProposalDto) { return this.proposalsService.create(dto); }
 
   @Get('proposals')
   findAll(
-    @Query('search') search?: string, @Query('status') status?: string,
-    @Query('dateRange') dateRange?: 'today'|'week'|'month',
-    @Query('orderBy') orderBy?: 'createdAt'|'totalCashCents'|'status',
-    @Query('orderDir') orderDir?: 'asc'|'desc',
+    @Query('search')    search?: string,
+    @Query('status')    status?: string,
+    @Query('dateRange') dateRange?: 'today' | 'week' | 'month',
+    @Query('orderBy')   orderBy?: 'createdAt' | 'totalCashCents' | 'status',
+    @Query('orderDir')  orderDir?: 'asc' | 'desc',
   ) { return this.proposalsService.findAll({ search, status, dateRange, orderBy, orderDir }); }
 
   @Get('proposals/status-counts')
@@ -55,6 +60,9 @@ export class ProposalsController {
 
   @Get('proposals/:id/views')
   getViews(@Param('id') id: string) { return this.proposalsService.getViews(id); }
+
+  @Get('proposals/:id/events')
+  getEvents(@Param('id') id: string) { return this.proposalsService.getEvents(id); }
 
   @Get('proposals/:id/pdf')
   async getPdf(@Param('id') id: string, @Res() res: Response) {
@@ -104,7 +112,7 @@ export class ProposalsController {
 
     res.set({
       'Content-Type':        'application/pdf',
-      'Content-Disposition': `attachment; filename="proposta-${proposal.proposalCode ?? id.slice(0,8)}.pdf"`,
+      'Content-Disposition': `attachment; filename="proposta-${proposal.proposalCode ?? id.slice(0, 8)}.pdf"`,
       'Content-Length':      pdfBuffer.length,
     });
     res.end(pdfBuffer);
@@ -138,6 +146,22 @@ export class ProposalsController {
   @Post('proposals/:id/duplicate')
   duplicate(@Param('id') id: string) { return this.proposalsService.duplicate(id); }
 
+  // ── Admin: alertas de follow-up ───────────────────────────────────────────
+
+  @Get('admin/alerts/followup')
+  getFollowupAlerts(@Query('days') days?: string) {
+    return this.proposalsService.getFollowupAlerts(days ? parseInt(days) : 2);
+  }
+
+  // ── Admin: clientes ───────────────────────────────────────────────────────
+
+  @Get('admin/clients')
+  getClients(@Query('search') search?: string) {
+    return this.proposalsService.getClients(search);
+  }
+
+  // ── Pricing Config ────────────────────────────────────────────────────────
+
   @Get('admin/pricing')
   getPricingConfigs() { return this.proposalsService.getPricingConfigs(); }
 
@@ -145,6 +169,8 @@ export class ProposalsController {
   updatePricingConfig(@Param('key') key: string, @Body() body: { value: number }) {
     return this.proposalsService.updatePricingConfig(key, body.value);
   }
+
+  // ── Upsell Products ───────────────────────────────────────────────────────
 
   @Get('admin/upsells')
   listUpsellProducts() { return this.proposalsService.listUpsellProducts(); }

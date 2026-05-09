@@ -30,6 +30,13 @@ export class ProposalsService {
     return `ORC-${year}-${seq}`;
   }
 
+  // ── Log de evento ─────────────────────────────────────────────────────────
+  private async logEvent(proposalId: string, type: string, payload?: object) {
+    await this.prisma.proposalEvent.create({
+      data: { proposalId, type, payload: payload ?? undefined },
+    });
+  }
+
   private async calcPrice(
     areaM2: number,
     displacementCostCents: number,
@@ -147,6 +154,12 @@ export class ProposalsService {
       include: { client: true },
     });
 
+    await this.logEvent(proposal.id, 'CREATED', {
+      proposalCode,
+      totalCashCents,
+      clientName: client.name,
+    });
+
     const frontendUrl  = process.env.FRONTEND_URL ?? 'http://localhost:3000';
     const whatsapp     = process.env.EMPRESA_WHATSAPP ?? '5551999999999';
     const proposalLink = `${frontendUrl}/proposta/${proposal.id}`;
@@ -160,7 +173,7 @@ export class ProposalsService {
     };
   }
 
-  // ── Busca / listagem com filtros ──────────────────────────────────────────
+  // ── Listagem com filtros ──────────────────────────────────────────────────
 
   async findAll(filters?: {
     search?: string;
@@ -171,44 +184,33 @@ export class ProposalsService {
   }) {
     const where: any = {};
 
-    // Filtro de busca: nome, whatsapp, email, código, cidade
     if (filters?.search) {
       const q = filters.search.trim();
       where.OR = [
-        { proposalCode:  { contains: q, mode: 'insensitive' } },
-        { clientCity:    { contains: q, mode: 'insensitive' } },
+        { proposalCode: { contains: q, mode: 'insensitive' } },
+        { clientCity:   { contains: q, mode: 'insensitive' } },
         { client: { name:     { contains: q, mode: 'insensitive' } } },
         { client: { whatsapp: { contains: q, mode: 'insensitive' } } },
         { client: { email:    { contains: q, mode: 'insensitive' } } },
       ];
     }
 
-    // Filtro por status
     if (filters?.status && filters.status !== 'ALL') {
       where.status = filters.status;
     }
 
-    // Filtro por data
     if (filters?.dateRange) {
-      const now   = new Date();
       const start = new Date();
-      if (filters.dateRange === 'today') {
-        start.setHours(0, 0, 0, 0);
-      } else if (filters.dateRange === 'week') {
-        start.setDate(now.getDate() - 7);
-      } else if (filters.dateRange === 'month') {
-        start.setDate(now.getDate() - 30);
-      }
+      if      (filters.dateRange === 'today') start.setHours(0, 0, 0, 0);
+      else if (filters.dateRange === 'week')  start.setDate(start.getDate() - 7);
+      else if (filters.dateRange === 'month') start.setDate(start.getDate() - 30);
       where.createdAt = { gte: start };
     }
-
-    const orderField = filters?.orderBy ?? 'createdAt';
-    const orderDir   = filters?.orderDir ?? 'desc';
 
     return this.prisma.proposal.findMany({
       where,
       include: { client: true },
-      orderBy: { [orderField]: orderDir },
+      orderBy: { [filters?.orderBy ?? 'createdAt']: filters?.orderDir ?? 'desc' },
     });
   }
 
@@ -222,6 +224,91 @@ export class ProposalsService {
     return result;
   }
 
+  // ── Alertas de follow-up ──────────────────────────────────────────────────
+  // Propostas VIEWED ou NEGOTIATING sem aprovação há X dias
+  async getFollowupAlerts(daysThreshold = 2) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysThreshold);
+
+    const proposals = await this.prisma.proposal.findMany({
+      where: {
+        status: { in: ['VIEWED', 'NEGOTIATING'] },
+        lastViewedAt: { lte: cutoff },
+        expiresAt: { gte: new Date() }, // não expiradas
+      },
+      include: { client: true },
+      orderBy: { lastViewedAt: 'desc' },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const empresa     = process.env.EMPRESA_WHATSAPP ?? '5551999999999';
+
+    return proposals.map((p) => {
+      const daysSinceView = Math.floor(
+        (Date.now() - new Date(p.lastViewedAt!).getTime()) / 86400000,
+      );
+      const proposalLink = `${frontendUrl}/proposta/${p.id}`;
+      const waMsg = encodeURIComponent(
+        `Olá ${p.client.name}! Tudo bem? Queria saber se ficou com alguma dúvida sobre seu orçamento ${p.proposalCode}. Ainda temos condições especiais disponíveis! 😊`,
+      );
+      return {
+        id:            p.id,
+        proposalCode:  p.proposalCode,
+        clientName:    p.client.name,
+        whatsapp:      p.client.whatsapp,
+        status:        p.status,
+        totalCashCents: p.totalCashCents,
+        lastViewedAt:  p.lastViewedAt,
+        daysSinceView,
+        expiresAt:     p.expiresAt,
+        proposalLink,
+        whatsappLink:  `https://wa.me/${p.client.whatsapp.replace(/\D/g, '')}?text=${waMsg}`,
+      };
+    });
+  }
+
+  // ── Clientes com histórico de propostas ───────────────────────────────────
+  async getClients(search?: string) {
+    const where: any = {};
+    if (search) {
+      const q = search.trim();
+      where.OR = [
+        { name:     { contains: q, mode: 'insensitive' } },
+        { whatsapp: { contains: q, mode: 'insensitive' } },
+        { email:    { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const clients = await this.prisma.client.findMany({
+      where,
+      include: {
+        proposals: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, proposalCode: true, status: true,
+            totalCashCents: true, createdAt: true,
+            areaM2: true, clientCity: true, lastViewedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return clients.map((c) => ({
+      ...c,
+      totalProposals:  c.proposals.length,
+      totalApproved:   c.proposals.filter((p) => p.status === 'APPROVED').length,
+      totalValueCents: c.proposals.reduce((s, p) => s + p.totalCashCents, 0),
+      lastActivity:    c.proposals[0]?.createdAt ?? c.createdAt,
+      hasHot:          c.proposals.some((p) =>
+        p.status === 'VIEWED' && p.lastViewedAt &&
+        Date.now() - new Date(p.lastViewedAt).getTime() < 48 * 3600000
+      ),
+    }));
+  }
+
+  // ── findOne ───────────────────────────────────────────────────────────────
+
   async findOne(id: string, userAgent?: string, ip?: string) {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id },
@@ -233,13 +320,22 @@ export class ProposalsService {
       data: { proposalId: id, userAgent: userAgent ?? null, ip: ip ?? null },
     });
 
+    const isFirstView = proposal.status === 'SENT';
+
     await this.prisma.proposal.update({
       where: { id },
       data: {
         viewCount:    { increment: 1 },
         lastViewedAt: new Date(),
-        status:       proposal.status === 'SENT' ? 'VIEWED' : proposal.status,
+        status:       isFirstView ? 'VIEWED' : proposal.status,
       },
+    });
+
+    // Loga evento de visualização
+    await this.logEvent(id, 'VIEWED', {
+      ip: ip ?? null,
+      viewCount: proposal.viewCount + 1,
+      firstView: isFirstView,
     });
 
     const allUpsells = await this.prisma.upsellProduct.findMany({
@@ -264,6 +360,17 @@ export class ProposalsService {
     });
   }
 
+  // ── Eventos / histórico ───────────────────────────────────────────────────
+
+  async getEvents(id: string) {
+    return this.prisma.proposalEvent.findMany({
+      where:   { proposalId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ── updateUpsells ─────────────────────────────────────────────────────────
+
   async updateUpsells(id: string, dto: UpdateUpsellsDto) {
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
@@ -275,10 +382,8 @@ export class ProposalsService {
       proposal.hiddenMarginCents,
     );
 
-    // Se o cliente alterar upsells após aprovar, volta para VIEWED
-    // para forçar uma nova aprovação consciente
-    const newStatus =
-      proposal.status === 'APPROVED' ? 'VIEWED' : proposal.status;
+    const wasApproved = proposal.status === 'APPROVED';
+    const newStatus   = wasApproved ? 'VIEWED' : proposal.status;
 
     const updated = await this.prisma.proposal.update({
       where: { id },
@@ -291,45 +396,76 @@ export class ProposalsService {
       include: { client: true },
     });
 
-    return {
-      ...updated,
-      pricing,
-      // Avisa o frontend que o status foi revertido
-      statusReverted: proposal.status === 'APPROVED',
-    };
+    await this.logEvent(id, 'UPSELLS_CHANGED', {
+      selectedUpsellIds: dto.selectedUpsellIds,
+      newTotal: totalCashCents,
+      approvalReverted: wasApproved,
+    });
+
+    return { ...updated, pricing, statusReverted: wasApproved };
   }
 
   async approve(id: string) {
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
-    return this.prisma.proposal.update({ where: { id }, data: { status: 'APPROVED' } });
-  }
 
-  // ── Status manual ─────────────────────────────────────────────────────────
+    const updated = await this.prisma.proposal.update({
+      where: { id },
+      data:  { status: 'APPROVED' },
+    });
+
+    await this.logEvent(id, 'APPROVED', {
+      totalCashCents: proposal.totalCashCents,
+      selectedUpsellIds: proposal.selectedUpsellIds,
+    });
+
+    return updated;
+  }
 
   async updateStatus(id: string, status: string) {
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
-    return this.prisma.proposal.update({ where: { id }, data: { status: status as any } });
-  }
 
-  // ── Notas internas ────────────────────────────────────────────────────────
+    const updated = await this.prisma.proposal.update({
+      where: { id },
+      data:  { status: status as any },
+    });
+
+    await this.logEvent(id, 'STATUS_CHANGED', {
+      from: proposal.status,
+      to:   status,
+    });
+
+    return updated;
+  }
 
   async updateNotes(id: string, notes: string) {
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
-    return this.prisma.proposal.update({ where: { id }, data: { internalNotes: notes } });
-  }
 
-  // ── Marcar contato de follow-up ───────────────────────────────────────────
+    const updated = await this.prisma.proposal.update({
+      where: { id },
+      data:  { internalNotes: notes },
+    });
+
+    await this.logEvent(id, 'NOTES_UPDATED', { preview: notes.slice(0, 80) });
+
+    return updated;
+  }
 
   async markContacted(id: string) {
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
-    return this.prisma.proposal.update({ where: { id }, data: { lastContactedAt: new Date() } });
-  }
 
-  // ── Duplicar proposta ─────────────────────────────────────────────────────
+    const updated = await this.prisma.proposal.update({
+      where: { id },
+      data:  { lastContactedAt: new Date() },
+    });
+
+    await this.logEvent(id, 'CONTACTED');
+
+    return updated;
+  }
 
   async duplicate(id: string) {
     const original = await this.prisma.proposal.findUnique({
@@ -346,23 +482,28 @@ export class ProposalsService {
     const copy = await this.prisma.proposal.create({
       data: {
         proposalCode,
-        clientId:             original.clientId,
-        lengthM:              original.lengthM,
-        widthM:               original.widthM,
-        areaM2:               original.areaM2,
-        clientCity:           original.clientCity,
+        clientId:              original.clientId,
+        lengthM:               original.lengthM,
+        widthM:                original.widthM,
+        areaM2:                original.areaM2,
+        clientCity:            original.clientCity,
         displacementCostCents: original.displacementCostCents,
-        hiddenMarginCents:    original.hiddenMarginCents,
-        basePriceCents:       original.basePriceCents,
-        excessPriceCents:     original.excessPriceCents,
-        totalCashCents:       original.totalCashCents,
-        selectedUpsellIds:    original.selectedUpsellIds,
-        upsellTotalCents:     original.upsellTotalCents,
+        hiddenMarginCents:     original.hiddenMarginCents,
+        basePriceCents:        original.basePriceCents,
+        excessPriceCents:      original.excessPriceCents,
+        totalCashCents:        original.totalCashCents,
+        selectedUpsellIds:     original.selectedUpsellIds,
+        upsellTotalCents:      original.upsellTotalCents,
         validityDays,
         expiresAt,
         status: 'SENT',
       },
       include: { client: true },
+    });
+
+    await this.logEvent(copy.id, 'CREATED', {
+      proposalCode,
+      duplicatedFrom: original.proposalCode,
     });
 
     const frontendUrl  = process.env.FRONTEND_URL ?? 'http://localhost:3000';
