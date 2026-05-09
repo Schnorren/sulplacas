@@ -20,4 +20,4 @@ COPY --from=builder /app/prisma       ./prisma
 COPY --from=builder /app/scripts      ./scripts
 RUN pip3 install reportlab --break-system-packages
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["node", "dist/main"]
