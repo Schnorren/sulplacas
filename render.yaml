@@ -1,0 +1,39 @@
+# render.yaml
+# Coloque este arquivo na RAIZ do repositório (sulplacas2/)
+# O Render lê este arquivo automaticamente ao conectar o repo
+
+services:
+  # ── Backend (NestJS) ────────────────────────────────────────────────────────
+  - type: web
+    name: sulplacas-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # você preenche manualmente no dashboard
+      - key: FRONTEND_URL
+        value: https://solarsulrs.com.br
+      - key: EMPRESA_WHATSAPP
+        value: "5551999999999"
+      - key: INTERNAL_SECRET
+        generateValue: true  # Render gera automaticamente
+      - key: PORT
+        value: "3001"
+
+  # ── Frontend (Next.js) ──────────────────────────────────────────────────────
+  - type: web
+    name: sulplacas-web
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://sulplacas-api.onrender.com/api
+      - key: NEXT_PUBLIC_FRONTEND_URL
+        value: https://solarsulrs.com.br
+      - key: INTERNAL_API_URL
+        value: https://sulplacas-api.onrender.com/api

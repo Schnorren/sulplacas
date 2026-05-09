@@ -1,10 +1,16 @@
+// backend/src/app.module.ts
+// SUBSTITUA o conteúdo atual por este
+
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
-import { PrismaModule } from './prisma/prisma.module';
 import { ProposalsModule } from './proposals/proposals.module';
-import { FollowupModule } from './followup/followup.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, ProposalsModule, FollowupModule],
+  imports: [
+    PrismaModule,
+    ProposalsModule,
+    HealthModule,
+  ],
 })
 export class AppModule {}
