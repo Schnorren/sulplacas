@@ -18,6 +18,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma       ./prisma
 COPY --from=builder /app/scripts      ./scripts
+COPY start.sh ./start.sh
 RUN pip3 install reportlab --break-system-packages
+RUN chmod +x start.sh
 EXPOSE 3001
-CMD ["node", "dist/main"]
+CMD ["sh", "start.sh"]
