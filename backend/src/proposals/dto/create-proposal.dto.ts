@@ -30,7 +30,7 @@ export class CreateProposalDto {
 
   @IsOptional()
   @IsInt()
-  @Min(0)
+  // @Min(0) <-- REMOVIDO: Agora aceita valores negativos para aplicar descontos
   hiddenMarginCents?: number;
 
   @IsOptional()
