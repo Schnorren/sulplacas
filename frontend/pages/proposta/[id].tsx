@@ -1,6 +1,6 @@
 // frontend/pages/proposta/[id].tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -20,12 +20,36 @@ interface ProposalData {
 }
 
 export async function getServerSideProps({ params }: { params: { id: string } }) {
-  try {
-    const SSR_API = process.env.INTERNAL_API_URL || 'http://backend:3001/api';
-    const res = await fetch(`${SSR_API}/proposals/${params.id}`);
-    if (!res.ok) return { notFound: true };
-    return { props: { proposal: await res.json() } };
-  } catch { return { notFound: true }; }
+  const SSR_API =
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'http://localhost:3001/api';
+
+  // O backend (Render free) pode estar "dormindo" e levar ~50s pra acordar.
+  // Tentamos algumas vezes para tolerar o cold start antes de desistir.
+  const ATTEMPTS = 3;
+  for (let i = 0; i < ATTEMPTS; i++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${SSR_API}/proposals/${params.id}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      // Proposta realmente não existe → 404 de verdade.
+      if (res.status === 404) return { notFound: true };
+      // Sucesso → renderiza a proposta.
+      if (res.ok) return { props: { proposal: await res.json() } };
+      // 5xx/502 (backend acordando) → tenta de novo.
+    } catch {
+      // timeout / erro de rede → backend provavelmente dormindo, tenta de novo.
+    }
+  }
+
+  // Esgotou as tentativas: provável cold start ainda em curso.
+  // Em vez de um 404, mostramos uma tela amigável que recarrega sozinha.
+  return { props: { wakingUp: true } };
 }
 
 const fmt = (cents: number) =>
@@ -34,7 +58,42 @@ const fmt = (cents: number) =>
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-export default function ProposalPage({ proposal }: { proposal: ProposalData }) {
+// Tela exibida enquanto o backend "acorda" (cold start do Render free).
+// Recarrega sozinha a cada 5s até a proposta carregar.
+function WakingScreen() {
+  useEffect(() => {
+    const t = setTimeout(() => window.location.reload(), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <>
+      <Head>
+        <title>Carregando sua proposta — Sul Placas</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+      <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #020617 0%, #0f172a 100%)', color: '#fff', padding: 24, textAlign: 'center' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F59E0B', borderRadius: 12, padding: '8px 20px', marginBottom: 28 }}>
+          <span style={{ fontSize: 20 }}>☀️</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Sul Placas</span>
+        </div>
+        <div style={{ width: 44, height: 44, border: '4px solid rgba(245,158,11,0.25)', borderTopColor: '#F59E0B', borderRadius: '50%', animation: 'spin 0.9s linear infinite', marginBottom: 24 }} />
+        <p style={{ fontSize: 17, fontWeight: 700, margin: '0 0 8px' }}>Preparando sua proposta…</p>
+        <p style={{ fontSize: 14, color: '#94a3b8', margin: 0, maxWidth: 320, lineHeight: 1.5 }}>
+          Só um instante — estamos carregando seu orçamento personalizado. A página atualiza sozinha.
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </>
+  );
+}
+
+export default function ProposalPage({ proposal, wakingUp }: { proposal?: ProposalData; wakingUp?: boolean }) {
+  if (wakingUp || !proposal) return <WakingScreen />;
+  return <ProposalView proposal={proposal} />;
+}
+
+function ProposalView({ proposal }: { proposal: ProposalData }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(proposal.selectedUpsellIds));
   const [pricing, setPricing]   = useState<Pricing>(proposal.pricing);
   const [saving, setSaving]     = useState(false);
