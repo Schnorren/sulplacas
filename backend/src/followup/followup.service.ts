@@ -36,7 +36,7 @@ export class FollowupService {
     });
     for (const p of proposals) {
       const url = proposalUrl(p.id);
-      const city = (p as any).city ?? 'sua cidade';
+      const city = p.clientCity ?? 'sua cidade';
       const msg = `Olá ${p.client.name}! Vejo que você conferiu a proposta para sua piscina em ${city}. Ficou alguma dúvida? ${url}`;
       const link = waLink(p.client.whatsapp, msg);
       await this.prisma.proposal.update({ where: { id: p.id },
@@ -82,7 +82,7 @@ export class FollowupService {
     });
     for (const p of proposals) {
       const url = proposalUrl(p.id);
-      const city = (p as any).city ?? 'N/A';
+      const city = p.clientCity ?? 'N/A';
       const msg = `PROPOSTA QUENTE - ${p.client.name} (${city}) abriu ${p.viewCount}x. Ligue agora! ${url}`;
       const link = waLink(EMPRESA_WHATSAPP, msg);
       await this.prisma.proposal.update({ where: { id: p.id }, data: { hotAlertSentAt: new Date() } });
@@ -94,7 +94,7 @@ export class FollowupService {
     const p = await this.prisma.proposal.findUnique({ where: { id: proposalId }, include: { client: true } });
     if (!p) throw new Error('Proposta nao encontrada');
     const url = proposalUrl(p.id);
-    const city = (p as any).city ?? 'sua cidade';
+    const city = p.clientCity ?? 'sua cidade';
     const msg = `Olá ${p.client.name}! Alguma dúvida sobre sua proposta em ${city}? ${url}`;
     const link = waLink(p.client.whatsapp, msg);
     await this.prisma.proposal.update({ where: { id: proposalId },

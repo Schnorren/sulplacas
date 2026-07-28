@@ -1,14 +1,39 @@
 // backend/src/proposals/proposals.service.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { UpdateUpsellsDto } from './dto/update-upsells.dto';
 import { UpsertUpsellProductDto } from './dto/upsert-upsell-product.dto';
 
+// Crawlers de preview de link (WhatsApp, redes sociais, buscadores). Quando um
+// destes abre a proposta apenas para gerar a prévia, NÃO contamos como visita.
+const BOT_UA_REGEX =
+  /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|skype|preview|embed|headless|monitor|curl|wget|python-requests|axios|node-fetch|undici|okhttp|go-http/i;
+
 @Injectable()
 export class ProposalsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Cache curto dos PricingConfig — são poucos e mudam raramente, mas são lidos
+  // em todo preview (a cada tecla) e em toda visualização de proposta.
+  private configCache: { map: Record<string, number>; at: number } | null = null;
+  private static readonly CONFIG_TTL_MS = 60_000;
+
+  private static readonly VALID_STATUSES = [
+    'DRAFT', 'SENT', 'VIEWED', 'APPROVED', 'EXPIRED', 'NEGOTIATING', 'LOST',
+  ];
+
+  private async getConfigMap(): Promise<Record<string, number>> {
+    const now = Date.now();
+    if (this.configCache && now - this.configCache.at < ProposalsService.CONFIG_TTL_MS) {
+      return this.configCache.map;
+    }
+    const configs = await this.prisma.pricingConfig.findMany();
+    const map = Object.fromEntries(configs.map((c) => [c.key, c.value]));
+    this.configCache = { map, at: now };
+    return map;
+  }
 
   private formatBRL(cents: number): string {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
@@ -43,8 +68,7 @@ export class ProposalsService {
     selectedUpsellIds: string[],
     hiddenMarginCents = 0,
   ) {
-    const configs = await this.prisma.pricingConfig.findMany();
-    const cfg = Object.fromEntries(configs.map((c) => [c.key, c.value]));
+    const cfg = await this.getConfigMap();
 
     const basePriceCents      = cfg['BASE_PRICE']             ?? 390000;
     const baseAreaLimit       = (cfg['BASE_AREA_LIMIT_M2']    ?? 1800) / 100;
@@ -316,27 +340,31 @@ export class ProposalsService {
     });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
 
-    await this.prisma.proposalView.create({
-      data: { proposalId: id, userAgent: userAgent ?? null, ip: ip ?? null },
-    });
+    // Só registra a visita se for um humano de verdade (não crawler de preview).
+    const isBot = !!userAgent && BOT_UA_REGEX.test(userAgent);
+    if (!isBot) {
+      await this.prisma.proposalView.create({
+        data: { proposalId: id, userAgent: userAgent ?? null, ip: ip ?? null },
+      });
 
-    const isFirstView = proposal.status === 'SENT';
+      const isFirstView = proposal.status === 'SENT';
 
-    await this.prisma.proposal.update({
-      where: { id },
-      data: {
-        viewCount:    { increment: 1 },
-        lastViewedAt: new Date(),
-        status:       isFirstView ? 'VIEWED' : proposal.status,
-      },
-    });
+      await this.prisma.proposal.update({
+        where: { id },
+        data: {
+          viewCount:    { increment: 1 },
+          lastViewedAt: new Date(),
+          status:       isFirstView ? 'VIEWED' : proposal.status,
+        },
+      });
 
-    // Loga evento de visualização
-    await this.logEvent(id, 'VIEWED', {
-      ip: ip ?? null,
-      viewCount: proposal.viewCount + 1,
-      firstView: isFirstView,
-    });
+      // Loga evento de visualização
+      await this.logEvent(id, 'VIEWED', {
+        ip: ip ?? null,
+        viewCount: proposal.viewCount + 1,
+        firstView: isFirstView,
+      });
+    }
 
     const allUpsells = await this.prisma.upsellProduct.findMany({
       where: { active: true },
@@ -423,6 +451,10 @@ export class ProposalsService {
   }
 
   async updateStatus(id: string, status: string) {
+    if (!ProposalsService.VALID_STATUSES.includes(status)) {
+      throw new BadRequestException(`Status inválido: ${status}`);
+    }
+
     const proposal = await this.prisma.proposal.findUnique({ where: { id } });
     if (!proposal) throw new NotFoundException('Proposta não encontrada');
 
@@ -525,11 +557,13 @@ export class ProposalsService {
   }
 
   async updatePricingConfig(key: string, value: number) {
-    return this.prisma.pricingConfig.upsert({
+    const result = await this.prisma.pricingConfig.upsert({
       where:  { key },
       update: { value },
       create: { key, value, label: key },
     });
+    this.configCache = null; // invalida o cache para refletir o novo valor na hora
+    return result;
   }
 
   // ── Upsell Products ───────────────────────────────────────────────────────

@@ -3,9 +3,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'sulplacas2025';
 const COOKIE_NAME    = 'sulplacas_auth';
-const COOKIE_VALUE   = 'authenticated';
+// Deve bater com o valor setado no login (pages/api/auth/login.ts).
+const COOKIE_VALUE   = process.env.ADMIN_SESSION_SECRET ?? 'dev-session-secret';
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-const API          = process.env.NEXT_PUBLIC_API_URL      ?? 'http://localhost:3001/api';
+// Admin chama o backend através dos endpoints server-side em /api/admin.
+const API          = '/api/admin';
 const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'http://localhost:3000';
 
 type Tab = 'nova' | 'propostas' | 'clientes' | 'config';
@@ -650,7 +651,7 @@ export default function AdminPage() {
 // ── ProposalCard ───────────────────────────────────────────────────────────────
 function ProposalCard({p,expanded,expandedEvents,views,events,editingNotes,notesValue,savingNotes,savingStatus,onToggleExpand,onToggleEvents,onStatusChange,onEditNotes,onNotesChange,onSaveNotes,onCancelNotes,onMarkContacted,onDuplicate,getWhatsAppLink}:any) {
   const FE = process.env.NEXT_PUBLIC_FRONTEND_URL??'http://localhost:3000';
-  const API_URL = process.env.NEXT_PUBLIC_API_URL??'http://localhost:3001/api';
+  const API_URL = '/api/be';
   return (
     <div style={{background:'#1e293b',border:'1px solid #334155',borderRadius:12,padding:14,marginBottom:12,color:'#f1f5f9'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>

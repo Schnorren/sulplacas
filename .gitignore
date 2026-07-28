@@ -2,6 +2,7 @@ node_modules/
 dist/
 .next/
 build/
+*.tsbuildinfo
 .env
 .env.local
 *.db
@@ -10,3 +11,4 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .vscode/
+backups/

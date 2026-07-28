@@ -3,7 +3,7 @@
 import {
   Controller, Get, Post, Patch, Delete,
   Body, Param, Req, Res, Query,
-  HttpCode, HttpStatus, NotFoundException,
+  HttpCode, HttpStatus, NotFoundException, UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ProposalsService } from './proposals.service';
@@ -12,7 +12,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { UpdateUpsellsDto } from './dto/update-upsells.dto';
 import { UpsertUpsellProductDto } from './dto/upsert-upsell-product.dto';
+import { AdminGuard } from '../auth/admin.guard';
+import { Public } from '../auth/public.decorator';
 
+@UseGuards(AdminGuard)
 @Controller()
 export class ProposalsController {
   constructor(
@@ -51,6 +54,7 @@ export class ProposalsController {
   @Get('proposals/status-counts')
   getStatusCounts() { return this.proposalsService.getStatusCounts(); }
 
+  @Public()
   @Get('proposals/:id')
   findOne(@Param('id') id: string, @Req() req: Request) {
     const userAgent = req.headers['user-agent'];
@@ -118,11 +122,13 @@ export class ProposalsController {
     res.end(pdfBuffer);
   }
 
+  @Public()
   @Patch('proposals/:id/upsells')
   updateUpsells(@Param('id') id: string, @Body() dto: UpdateUpsellsDto) {
     return this.proposalsService.updateUpsells(id, dto);
   }
 
+  @Public()
   @Patch('proposals/:id/approve')
   @HttpCode(HttpStatus.OK)
   approve(@Param('id') id: string) { return this.proposalsService.approve(id); }

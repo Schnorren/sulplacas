@@ -19,11 +19,26 @@ interface ProposalData {
   status: string; expiresAt?: string;
 }
 
-export async function getServerSideProps({ params }: { params: { id: string } }) {
+export async function getServerSideProps({
+  params,
+  req,
+}: {
+  params: { id: string };
+  req: { headers: Record<string, string | string[] | undefined> };
+}) {
   const SSR_API =
     process.env.INTERNAL_API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     'http://localhost:3001/api';
+
+  // Repassa o IP e o User-Agent REAIS do cliente para o backend registrar a
+  // visita corretamente (sem isso, o backend veria só o IP do servidor Vercel).
+  const pick = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const forwardHeaders: Record<string, string> = {};
+  const clientUa = pick(req.headers['user-agent']);
+  const clientIp = pick(req.headers['x-forwarded-for']) ?? pick(req.headers['x-real-ip']);
+  if (clientUa) forwardHeaders['user-agent'] = clientUa;
+  if (clientIp) forwardHeaders['x-forwarded-for'] = clientIp;
 
   // O backend (Render free) pode estar "dormindo" e levar ~50s pra acordar.
   // Tentamos algumas vezes para tolerar o cold start antes de desistir.
@@ -34,6 +49,7 @@ export async function getServerSideProps({ params }: { params: { id: string } })
       const timer = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${SSR_API}/proposals/${params.id}`, {
         signal: controller.signal,
+        headers: forwardHeaders,
       });
       clearTimeout(timer);
 
